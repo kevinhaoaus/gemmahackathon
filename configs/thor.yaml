@@ -29,7 +29,7 @@ detector_model_cpu: ""     # optional plain .tflite detector for handoff labels;
 detector_labels: ""        # COCO labels for the optional detector
 # Workspace camera snapshot URL: http(s)://.../shot.jpg, file:<path>, mock:, or "" for none.
 # 192.168.1.50 = the Android IP Webcam phone; replace it, or "" if this node has no camera.
-camera_url: "http://192.168.1.50:8080/shot.jpg"
+camera_url: ""           # the bench camera is on the Legion; the Thor fetches its frames over the cable
 
 # --- network (LAN only) -----------------------------------------------------
 # Plan: thor .30 (this), legion .36, pi .40, macbook .41, macbook2 .42. Replace with your IPs.
