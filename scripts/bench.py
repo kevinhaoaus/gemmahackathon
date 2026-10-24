@@ -996,7 +996,7 @@ def main(argv=None) -> None:
     k.add_argument("--approach", type=float, default=0.08, help="approach height above grip, m")
     k.add_argument("--dry-run", action="store_true", help="plan and show, never connect or move")
     k.add_argument("--grip-open-cm", type=float, default=10.0, help="finger gap when fully open (linear model)")
-    k.add_argument("--squeeze-mm", type=float, default=5.0, help="close this much narrower than the object")
+    k.add_argument("--squeeze-mm", type=float, default=15.0, help="close this much narrower than the object")
     k.add_argument("--seconds", type=float, default=0, help="auto-quit after N s (testing)")
     args = ap.parse_args(argv)
     if args.cmd == "jog-gui":

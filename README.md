@@ -21,7 +21,7 @@ Fastest route to a real pick-and-place is steps 1–7; everything else can wait.
 | 6 | `.venv\Scripts\python scripts\bench.py pick --dry-run` | click an object, then a destination: the plan is drawn on the image, arm targets are printed, and it reports reachable. Nothing moves |
 | 7 | `.venv\Scripts\python scripts\bench.py pick --height 0.02 --approach 0.08` | press `y`: the arm goes above the object, descends slowly, grips, lifts, carries, places, retreats. SPACE stops at any time. Start with something light and grippable (a marker), then a screwdriver / spring |
 
-**Gripper width:** pick closes to *(object width from the camera bounding box − 5 mm)* on a linear model (0 cm = closed, 10 cm = open). Tune with `pick --squeeze-mm`. In `jog-gui`, the **width** slider tests the model by hand.
+**Gripper width:** pick closes to *(object width from the camera bounding box − 15 mm)* on a linear model (0 cm = closed, 10 cm = open). Tune with `pick --squeeze-mm`. In `jog-gui`, the **width** slider tests the model by hand.
 
 **After pick-and-place works, test the full system:**
 
