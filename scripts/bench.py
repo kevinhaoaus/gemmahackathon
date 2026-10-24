@@ -332,7 +332,6 @@ def make_driver(args, base: list[float] | None = None):
         "gripper_open_rad": cal.get("gripper_open_rad", 0.0),
         "gripper_closed_rad": cal.get("gripper_closed_rad", 0.0),
         "gripper_vlim": 1.0,
-        "gripper_squeeze_rad": math.radians(getattr(args, "grip_squeeze_deg", 3.0)),
         # force_pos = Damiao force-position mode (a real force cap); posvel = position + contact back-off
         "gripper_mode": "force_pos" if getattr(args, "grip_force", 0) else "posvel",
         "gripper_force_ratio": getattr(args, "grip_force", 0) or 0.3,
@@ -971,8 +970,6 @@ def main(argv=None) -> None:
 
     def arm_args(p):
         p.add_argument("--port", default="COM5")
-        p.add_argument("--grip-squeeze-deg", type=float, default=3.0,
-                       help="on contact, hold this far past where the fingers stopped (gentle grip)")
         p.add_argument("--grip-force", type=float, default=0.0,
                        help="0 = position mode; 0.05-1 = Damiao force-position mode with this force ratio")
         p.add_argument("--baud", type=int, default=921600)
