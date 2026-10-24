@@ -111,10 +111,9 @@ class Heartbeat:
         return cls(**{k: v for k, v in obj.items() if k in fields})
 
 
-# Default system prompt for operator questions (/ask) at the robot cell.
-SYSTEM_PROMPT = ("You are the planning assistant for a robotic assembly cell where a large robot arm "
-                 "assembles an SO-101 arm from parts located by AprilTags. Describe what you see in the "
-                 "cell, flag hazards to people or equipment, and give one concrete next step. "
+# Default system prompt for operator questions (/ask) at the lab bench.
+SYSTEM_PROMPT = ("You are LabMate, a research-assistant robot arm on a lab bench. Describe what you see "
+                 "on the bench, flag hazards to people or equipment, and give one concrete next step. "
                  "You support the human operator; you do not replace their decisions.")
 
 # Planner job (kind "plan"): Gemma decides WHAT, geometry decides WHERE (docs/ROBOT_CELL.md).
@@ -145,9 +144,12 @@ LABEL_SYSTEM_PROMPT = (
     "Output ONLY one JSON object, with no prose and no code fences, in exactly this schema: "
     '{"items": [{"mark": 3, "item": "<item name>", "state": "open" | "closed" | ""}], '
     '"hazards": [{"type": "<hazard type>", "marks": [3]}], "use_case": "<use case id>" | "unknown"}. '
-    "Rules: every mark number must be one of the listed marks. Use only item names from the "
-    "catalog list and only hazard types from the hazard list, spelled exactly; if you are not "
-    'sure what a mark is, use "unknown". state is "open" or "closed" for containers with a lid '
+    "Rules: every mark number must be one of the listed marks. Name every object, whatever it "
+    "is: use the catalog item name when one fits, spelled exactly; otherwise give your own short "
+    "name of 1 to 3 lowercase words joined by underscores (scissors, tape_measure, beaker, "
+    "usb_cable). Use only hazard types from the hazard list, spelled exactly. Use \"unknown\" "
+    "only if you really cannot tell what a mark is. A mark may be part of the robot arm itself: "
+    'name it robot_arm. state is "open" or "closed" for containers with a lid '
     '(glue, bottles), else "". Report a hazard only if you can see it. use_case is the id of the '
     'listed experiment this bench is set up for, or "unknown". Never output coordinates, '
     "positions, sizes, angles or any numbers other than mark numbers: the robot measures all "

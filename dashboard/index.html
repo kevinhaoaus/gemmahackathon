@@ -512,13 +512,8 @@
   </section>
 
   <section class="panel" id="cellpanel" aria-label="robot cell">
-    <h2><button id="celltoggle" class="collapser" type="button" aria-expanded="true" aria-controls="cellbody"><span class="chev">▾</span>Robot cell · robot building robot</button> <span class="count" id="cellsum"></span></h2>
+    <h2><button id="celltoggle" class="collapser" type="button" aria-expanded="true" aria-controls="cellbody"><span class="chev">▾</span>Robot cell</button> <span class="count" id="cellsum"></span></h2>
     <div id="cellbody">
-    <form id="goalform" autocomplete="off">
-      <input id="goal" type="text" placeholder="Assembly goal… (Enter)" aria-label="assembly goal">
-      <button id="buildbtn" type="submit">Build</button>
-      <button id="presetbtn" class="presetbtn" type="button">Insert servo into SO-101</button>
-    </form>
     <div id="cellmsg"></div>
     <div class="cellgrid">
       <section class="subpanel" id="planbox">
@@ -528,7 +523,7 @@
           <span class="grow"></span>
           <button id="cancelbtn" type="button" disabled>Cancel</button>
         </div>
-        <div id="plangoal">No plan yet: type a goal and press Build</div>
+        <div id="plangoal">No plan yet: press Inspect bench in the LabMate panel</div>
         <div id="planid" class="mono"></div>
         <div id="planhand"></div>
         <div id="plantokwrap"><div class="lbl">Gemma is planning… <span id="plantokjob" class="mono"></span></div><div id="plantokens"></div></div>
@@ -1615,29 +1610,7 @@
     })(0);
   }
 
-  var building = false, cancelling = false;
-  $('goalform').addEventListener('submit', function (ev) {
-    ev.preventDefault();
-    var g = $('goal').value.trim();
-    if (!g || building) return;
-    building = true; $('buildbtn').disabled = true;
-    var msg = $('cellmsg');
-    postAny('/cell/goal', { goal: g }, msg, function (r, host) {
-      building = false; $('buildbtn').disabled = false;
-      var pid = r && (r.plan_id || (r.plan && r.plan.plan_id));
-      msg.className = 'ok';
-      msg.textContent = 'plan ' + (pid || 'requested') + ' via ' + hostLabel(host) + ((r && (r.leader_id || r.leader)) ? ' → leader ' + (r.leader_id || r.leader) : '');
-      $('goal').value = '';
-      if (r && r.plan && r.plan.plan_id) onPlan(r.plan, true, true);
-      // placeholder until plan.new arrives; no leader here, so it can't fake a "handed over" marker
-      else if (pid && !S.plans[pid]) onPlan({ plan_id: pid, goal: g, state: r.state || 'planning', steps: [], job_id: r.job_id }, true, true);
-      else if (pid) { S.currentPlanId = pid; render.plan = true; schedule(); }
-    }, function () { building = false; $('buildbtn').disabled = false; });
-  });
-  $('presetbtn').addEventListener('click', function () {
-    $('goal').value = 'Insert servo into SO-101';
-    $('goal').focus();
-  });
+  var cancelling = false;
   $('cancelbtn').addEventListener('click', function () {
     var p = S.plans[S.currentPlanId];
     if (!p || cancelling) return;

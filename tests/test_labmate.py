@@ -31,8 +31,9 @@ sys.path.insert(0, str(ROOT))
 
 from swarmmind.cell import labmate as LM  # noqa: E402
 from swarmmind.cell import planner as P  # noqa: E402
-from swarmmind.cell.labmate import (CatalogError, LabError, LabMate, agree, load_catalog,  # noqa: E402
-                                    parse_answer, parse_label, rank_hazards, score_use_cases)
+from swarmmind.cell.labmate import (CatalogError, LabError, LabMate, agree, item_spec,  # noqa: E402
+                                    load_catalog, parse_answer, parse_label, rank_hazards,
+                                    score_use_cases)
 from swarmmind.cell.planner import PlanManager  # noqa: E402
 from swarmmind.config import load_config  # noqa: E402
 from swarmmind.mock_llm import words_for  # noqa: E402
@@ -115,11 +116,27 @@ def test_parse_label_good_and_lenient():
                           "hazards": [{"type": "Open Container", "marks": [3, 42]}, {"type": "lasers", "marks": [5]}],
                           "use_case": "rocket_science"})
     p = parse_label(lenient, MARKS, CAT)
-    assert [(i["mark"], i["item"]) for i in p["items"]] == [(3, "superglue"), (5, "unknown"), (7, "file")]
+    assert [(i["mark"], i["item"]) for i in p["items"]] == [(3, "superglue"), (5, "hammer"), (7, "file")]
     assert p["items"][0]["state"] == "open"
     assert p["hazards"] == [{"type": "open_container", "marks": [3]}] and p["use_case"] == "unknown"
     w = " | ".join(p["warnings"])
-    assert "hammer" in w and "#42" in w and "lasers" in w and "rocket_science" in w and "twice" in w
+    assert "#42" in w and "lasers" in w and "rocket_science" in w and "twice" in w
+
+
+def test_open_vocabulary_names():
+    """Gemma may name things outside the catalog; only unusable names become unknown."""
+    raw = json.dumps({"items": [{"mark": 3, "item": "Tape Measure"}, {"mark": 5, "item": "usb-cable"},
+                                {"mark": 7, "item": "!!!"}, {"mark": 9, "item": "x" * 60}], "hazards": []})
+    p = parse_label(raw, MARKS, CAT)
+    assert [(i["mark"], i["item"]) for i in p["items"]] == \
+        [(3, "tape_measure"), (5, "usb_cable"), (7, "unknown"), (9, "unknown")]
+    # two passes that word the same thing differently still agree; the catalog name wins
+    a = parse_label(label_json([(3, "measuring_tapes", ""), (5, "spring", "")]), MARKS, CAT)
+    b = parse_label(label_json([(3, "tape_measuring", ""), (5, "springs", "")]), MARKS, CAT)
+    assert [(i["mark"], i["item"]) for i in agree(a, b, CAT)["items"]] == [(3, "measuring_tapes"), (5, "spring")]
+    assert item_spec(CAT, "scissors", {"length_m": 0.2, "width_m": 0.05})["grasp"] == "across"
+    assert item_spec(CAT, "beaker", {"length_m": 0.06, "width_m": 0.06})["grasp"] == "center"
+    assert item_spec(CAT, "robot_arm")["grasp"] == "none" and item_spec(CAT, "file") is CAT.items["file"]
 
 
 def test_parse_label_rejects_coordinates_and_garbage():
@@ -531,8 +548,8 @@ async def test_fetch_found_stale_and_missing(fast, scene):
     g = await node.lab.fetch("ruler")                              # in the catalog, not on the bench
     assert await _until(lambda: g.finished)
     assert g.state == "failed" and g.error == "I can't see a ruler"
-    with pytest.raises(LabError, match="not in the catalog"):
-        await node.lab.fetch("banana")
+    with pytest.raises(LabError, match="not a usable item name"):
+        await node.lab.fetch("!!!")
     with pytest.raises(LabError, match="never pick up"):
         await node.lab.fetch("power_supply")
 

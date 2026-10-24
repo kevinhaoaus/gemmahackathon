@@ -370,9 +370,9 @@ Every node keeps every finished report. The leader POSTs unsent reports to the f
 3. **Kill the leader mid-answer.** Unplug its network cable or power, or press Ctrl+C on its agent. Within about a second, the next node continues **the same sentence**. The answer shows `⟶ handed to <node> in N ms`. If that node can't see images, the handoff note shows that it re-ran its detector or used `[vision unavailable]`.
 4. **Bring the leader back.** It rejoins as a follower, catches up via sync, and retakes leadership only **after the current answer finishes** and it has been stable for 3 s. It never interrupts a stream.
 5. **Store-and-forward.** Leave the base-station sink off while answering a few questions; the reports queue up on every node. Then start `python scripts/uplink_sink.py --port 8800`, or plug in the base-station laptop. Within 5 s, the queue flushes, the dashboard marks the reports as sent, and each one lands **exactly once** at the sink.
-6. Optional robot cell:
-   1. Ask Gemma for a JSON assembly plan.
-   2. Submit the steps as `arm.so101` tasks (or `arm.mock`).
+6. Optional robot arm (LabMate, see [LABMATE.md](LABMATE.md)):
+   1. Press **Inspect bench** in the LabMate panel.
+   2. Submit steps as `arm.so101` tasks (or `arm.mock`) if you want to drive the arm directly.
    3. Kill the arm's node, and watch the task reassign.
    4. Cancel a task with `POST /task/{id}/cancel` (the e-stop).
 

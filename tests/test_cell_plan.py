@@ -4,21 +4,18 @@ Unit tests (no cluster): plan JSON extraction + validation, verify parsing, and 
 state machine on a fake node (happy path, re-plan after invalid output, verify-failure redo,
 resume after failover without re-running finished steps or resubmitting a running task).
 
-End-to-end (3-node simulator, real processes): POST /cell/goal -> Gemma (mock) plan -> arm.big
-tasks on sim_b -> verify -> done; then the leader is killed mid-plan and mid-plan-JSON, and the
-new leader finishes the same plan. Skipped if the perception / arm modules are not installed.
+The assembly-goal endpoint (POST /cell/goal) and its simulator end-to-end tests are removed for
+now; LabMate (tests/test_labmate.py) is the only user of this planner.
 """
 from __future__ import annotations
 
 import asyncio
-import importlib.util
 import json
 import sys
 import time
 from pathlib import Path
 from types import SimpleNamespace
 
-import httpx
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -412,160 +409,3 @@ async def test_replica_merge_keeps_newest_term_rev():
     assert pm.plans["p1"].step == 2 and pm.has_active()
 
 
-# ============================================================================ end-to-end on the simulator
-_MISSING = [m for m in ("swarmmind.cell.perception", "swarmmind.capabilities.cell_vision",
-                        "swarmmind.capabilities.cell_arm", "cv2") if importlib.util.find_spec(m) is None]
-e2e = pytest.mark.skipif(bool(_MISSING), reason=f"robot-cell modules not installed yet: {', '.join(_MISSING)} "
-                                                "(the integrator runs the e2e once perception and arm land)")
-
-
-def _get(url: str, path: str):
-    try:
-        r = httpx.get(url + path, timeout=1.5)
-        return r.json() if r.status_code == 200 else None
-    except (httpx.HTTPError, ValueError):
-        return None
-
-
-def _wait(cond, timeout: float, step: float = 0.1):
-    end = time.monotonic() + timeout
-    while time.monotonic() < end:
-        v = cond()
-        if v:
-            return v
-        time.sleep(step)
-    return None
-
-
-def _plan(url: str, pid: str):
-    return next((p for p in (_get(url, "/cell/plans") or {}).get("plans", []) if p["plan_id"] == pid), None)
-
-
-def _tasks(url: str, prefix: str) -> list[dict]:
-    return [t for t in (_get(url, "/tasks") or {}).get("tasks", []) if t["task_id"].startswith(prefix)]
-
-
-def _job(url: str, jid: str):
-    return next((j for j in (_get(url, "/state") or {}).get("jobs", []) if j["job_id"] == jid), None)
-
-
-def _cell_ready(url: str) -> bool:
-    s = ((_get(url, "/topics") or {}).get("topics") or {}).get("cell.state")
-    objs = {o["name"]: o for o in (s or {}).get("data", {}).get("objects", [])}
-    return all(objs.get(n, {}).get("visible") for n in ("servo_1", "so101_slot_1"))
-
-
-def _leader_everywhere(cluster, leader: str, keys=("a", "b", "c")) -> bool:
-    return all((_get(cluster.url(k), "/peers") or {}).get("leader_id") == leader for k in keys)
-
-
-@pytest.fixture(scope="module")
-def cluster():
-    if _MISSING:
-        pytest.skip(f"robot-cell modules not installed yet: {', '.join(_MISSING)}")
-    from scripts.simulate import SimCluster, ports_in_use
-    busy = ports_in_use()
-    if busy:
-        pytest.fail(f"sim ports in use ({', '.join(busy)}): stop the other simulator first")
-    c = SimCluster(log_dir=ROOT / "data" / "sim" / "logs_test_cell")
-    assert c.start(wait=True, timeout=40), "sim nodes did not come up"
-    yield c
-    c.stop()
-
-
-@e2e
-def test_goal_to_done_e2e(cluster):
-    a, b, cc = cluster.url("a"), cluster.url("b"), cluster.url("c")
-    assert _wait(lambda: _leader_everywhere(cluster, "sim_a"), 20), "sim_a never led"
-    assert _wait(lambda: _cell_ready(cc), 20), "cell.state with servo_1/so101_slot_1 never reached sim_c"
-
-    r = httpx.post(cc + "/cell/goal", json={"goal": "insert the servo into the SO-101"}, timeout=10)
-    assert r.status_code == 200, r.text                            # forwarded sim_c -> sim_a
-    pid = r.json()["plan_id"]
-    assert r.json()["leader_id"] == "sim_a"
-    busy = httpx.post(b + "/cell/goal", json={"goal": "again"}, timeout=10)
-    assert busy.status_code == 409 and busy.json()["plan_id"] == pid
-
-    done = _wait(lambda: (p := _plan(cc, pid)) and p["state"] in ("done", "failed", "cancelled") and p, 90)
-    assert done, f"plan never finished: {_plan(cc, pid)}"
-    assert done["state"] == "done", done
-    assert [s["state"] for s in done["steps"]] == ["done"] * 3
-    assert [s["op"] for s in done["steps"]] == ["pick", "place", "verify"]
-    assert done["steps"][2]["result"]["ok"] is True
-
-    ts = {t["task_id"]: t for t in _tasks(b, pid)}
-    assert set(ts) == {f"{pid}-s0-a0", f"{pid}-s1-a0"}
-    for t in ts.values():
-        assert t["state"] == "done" and t["assignee"] == "sim_b" and t["capability"] == "arm.big"
-        assert t["attempt"] == 1
-    assert ts[f"{pid}-s0-a0"]["args"]["action"] == "pick"
-    assert ts[f"{pid}-s1-a0"]["args"]["insert_depth"] == 0.02
-
-    pj = _job(cc, done["job_id"])
-    assert pj and pj["kind"] == "plan" and pj["state"] == "done"
-    for url in (a, b):                                             # replicated everywhere
-        assert (_plan(url, pid) or {}).get("state") == "done"
-
-    fr = httpx.get(cc + "/cell/frame.jpg", timeout=5)              # sim_c has no camera: from sim_a
-    assert fr.status_code == 200 and fr.content[:2] == b"\xff\xd8"
-
-
-@e2e
-def test_leader_dies_mid_plan_e2e(cluster):
-    a, b, cc = cluster.url("a"), cluster.url("b"), cluster.url("c")
-    assert _wait(lambda: _leader_everywhere(cluster, "sim_a"), 20)
-    assert _wait(lambda: not any(p["state"] not in ("done", "failed", "cancelled")
-                                 for p in (_get(cc, "/cell/plans") or {}).get("plans", [])), 30)
-    r = httpx.post(b + "/cell/goal", json={"goal": "insert the servo into the SO-101"}, timeout=10)
-    assert r.status_code == 200, r.text
-    pid = r.json()["plan_id"]
-
-    # kill the leader once the pick is done and the place task is executing on sim_b
-    at_kill = _wait(lambda: (p := _plan(cc, pid)) and p["state"] == "running" and p["step"] == 1
-                    and p["steps"][1]["task_id"] and p, 60, step=0.05)
-    assert at_kill, f"plan never reached the place step: {_plan(cc, pid)}"
-    cluster.kill("a")
-    assert _wait(lambda: (_get(b, "/peers") or {}).get("leader_id") == "sim_b", 5), "sim_b did not take over"
-
-    done = _wait(lambda: (p := _plan(cc, pid)) and p["state"] in ("done", "failed", "cancelled") and p, 90)
-    assert done, f"plan never finished after failover: {_plan(cc, pid)}"
-    assert done["state"] == "done", done
-    assert done["leader"] == "sim_b"
-    assert [s["state"] for s in done["steps"]] == ["done"] * 3
-
-    # finished steps were not re-run; the running task was waited for, not resubmitted
-    assert done["steps"][0]["task_id"] == at_kill["steps"][0]["task_id"] == f"{pid}-s0-a0"
-    assert done["steps"][0]["result"] == at_kill["steps"][0]["result"]
-    assert done["steps"][1]["task_id"] == at_kill["steps"][1]["task_id"] == f"{pid}-s1-a0"
-    ts = {t["task_id"]: t for t in _tasks(b, pid)}
-    assert set(ts) == {f"{pid}-s0-a0", f"{pid}-s1-a0"}, sorted(ts)
-    assert all(t["attempt"] == 1 and t["state"] == "done" for t in ts.values()), ts
-    vj = _job(b, done["steps"][2]["job_id"])
-    assert vj and vj["kind"] == "verify" and "sim_b" in vj["nodes_used"]
-
-
-@e2e
-def test_leader_dies_mid_plan_json_e2e(cluster):
-    """Kill the leader while Gemma is still streaming the plan JSON: the successor continues the
-    same JSON mid-token-stream and the plan still validates and completes."""
-    b, cc = cluster.url("b"), cluster.url("c")
-    if not cluster.alive("a"):
-        cluster.revive("a", wait=True)
-    assert _wait(lambda: _leader_everywhere(cluster, "sim_a"), 30), "sim_a never retook leadership"
-    assert _wait(lambda: _cell_ready(cc), 20)
-    r = httpx.post(cc + "/cell/goal", json={"goal": "put servo_1 into the SO-101 slot"}, timeout=10)
-    assert r.status_code == 200, r.text
-    pid = r.json()["plan_id"]
-    jid = f"{pid}-p0"
-    assert _wait(lambda: len((_job(cc, jid) or {}).get("tokens", [])) >= 4, 15, step=0.03), "plan job never streamed"
-    cluster.kill("a")
-
-    done = _wait(lambda: (p := _plan(cc, pid)) and p["state"] in ("done", "failed", "cancelled") and p, 90)
-    assert done and done["state"] == "done", done
-    assert done["attempt"] == 0 and done["job_id"] == jid          # the SAME plan job, no re-plan
-    job = _job(cc, jid)
-    assert job["handoffs"] and job["handoffs"][0]["to_node"] == "sim_b"
-    seqs = [t["seq"] for t in job["tokens"]]
-    assert seqs == list(range(len(seqs)))
-    assert {t["node_id"] for t in job["tokens"]} == {"sim_a", "sim_b"}
-    assert parse_plan("".join(t["token"] for t in job["tokens"]), OBJECTS)[0] == {"op": "pick", "object": "servo_1"}

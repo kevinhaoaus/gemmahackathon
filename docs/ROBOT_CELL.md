@@ -1,6 +1,8 @@
-# Robot cell: "robot building robot"
+# Robot cell (shared layer under LabMate)
 
-**Pivot:** SwarmMind's demo moves from wildfire Q&A to an assembly cell. A large arm picks a servo and places it into a slot in an SO-101 arm. Webcams and AprilTags locate everything. Gemma 4 runs on every machine and recognises parts, plans the steps and checks the result. If any computer dies, another Gemma takes over mid-plan and the cell keeps building.
+> **Removed for now:** the "robot building robot" assembly demo (a large arm inserting a servo into an SO-101 from a typed goal). There is no `POST /cell/goal` endpoint and no goal box in the dashboard. Only [LabMate](LABMATE.md) is kept. What is below is the layer LabMate runs on: AprilTag perception, the pluggable arm layer, and the replicated plan manager. The servo / slot examples in this file are the old assembly config, still used by the simulator configs and tests.
+
+Webcams and AprilTags locate everything. Gemma 4 runs on every machine. If any computer dies, another Gemma takes over mid-plan.
 
 **The swarm layer doesn't change** (election, handoff, tasks, topics: see [PROTOCOL.md](PROTOCOL.md)). New pieces:
 
@@ -71,8 +73,8 @@ The driver interface is `Arm`: `connect`, `home`, `move_to`, `gripper`, `stop`, 
 
 ### Planner
 
-1. `POST /cell/goal {"goal": "insert the servo into the SO-101"}` on any node is forwarded to the leader.
-2. Gemma returns `{"steps": [{"op": "pick", "object": "servo_1"}, {"op": "place", "target": "so101_slot_1"}, {"op": "verify", "check": "servo seated in slot"}]}`.
+1. (Removed: `POST /cell/goal`, the assembly goal entry point.) LabMate creates its plans directly on the leader.
+2. For the old assembly goal, Gemma returned `{"steps": [{"op": "pick", "object": "servo_1"}, {"op": "place", "target": "so101_slot_1"}, {"op": "verify", "check": "servo seated in slot"}]}`.
 3. The plan is validated (ops whitelist, names from `objects`, pick→place pairing), then compiled to arm tasks using the `cell.state` coordinates and executed step by step on the task bus.
 4. Plan state is replicated (`plan.new`, `plan.update`, leader-only, included in sync). A new leader resumes at the current step.
 5. Messages pushed to the UI: `plan.new` / `plan.update` with the body `{plan_id, goal, steps:[{op, object|target, state, task_id, result}], state, step, leader}`.
@@ -81,5 +83,5 @@ The driver interface is `Arm`: `connect`, `home`, `move_to`, `gripper`, `stop`, 
 
 - The perception capability sets `node.cell_state` (the latest `cell.state` dict) and `node.cell_annotated_jpeg` on its own node, and publishes `cell.state`. Every other node caches the latest `cell.state` from the topic in `node.topics.latest["cell.state"]`.
 - The planner reads `node.topics.latest["cell.state"]["data"]` (or `node.cell_state` locally). Arm coordinates are always computed with `swarmmind.cell.perception.table_to_arm`.
-- HTTP endpoints added by the planner work: `POST /cell/goal`, `GET /cell/plans`, `POST /cell/plans/{id}/cancel`, `GET /cell/frame.jpg` (the newest annotated frame: local, else fetched from the camera node).
+- HTTP endpoints added by the planner work: `GET /cell/plans`, `POST /cell/plans/{id}/cancel`, `GET /cell/frame.jpg` (the newest annotated frame: local, else fetched from the camera node).
 - Simulator: `sim_a` runs `vision.cell` with a synthetic tag scene (`source: mock`), and `sim_b` runs `arm.big` with `driver: mock`.

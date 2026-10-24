@@ -83,6 +83,10 @@ DEFAULTS = {
 _STATE_WORDS = {"open": "open", "opened": "open", "uncapped": "open", "unsealed": "open",
                 "closed": "closed", "capped": "closed", "sealed": "closed", "shut": "closed"}
 _NAME_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+MAX_NAME_LEN = 40         # longest free-form item name Gemma may give (anything else is "unknown")
+OTHER_HEIGHT_M = 0.03     # assumed grip height of an item that is not in the catalog
+SELF_ITEMS = ("robot_arm", "robot", "gripper")   # the arm seeing itself: never picked up
+LONG_ASPECT = 2.5        # a blob this much longer than wide is gripped "across" its width
 
 
 class LabError(PlanError):
@@ -223,6 +227,28 @@ def resolve(v: Any, names: Any) -> str:
     return squash.get(key) or squash.get(key[:-1] if key.endswith("s") else key) or n
 
 
+def item_spec(catalog: Catalog, name: str, blob: dict | None = None) -> dict:
+    """Catalog entry for `name`. An item Gemma named that is not in the catalog gets a default:
+    kind "other", a mid-size grip height, and a grasp taken from its blob (long and thin: across)."""
+    spec = catalog.items.get(name)
+    if spec is not None:
+        return spec
+    if name in SELF_ITEMS:
+        return {"kind": "equipment", "height": 0.0, "grasp": "none"}
+    L, W = float((blob or {}).get("length_m") or 0.0), float((blob or {}).get("width_m") or 0.0)
+    grasp = "across" if W > 1e-6 and L / W >= LONG_ASPECT else "center"
+    return {"kind": "other", "height": OTHER_HEIGHT_M, "grasp": grasp}
+
+
+def _canon(name: str) -> str:
+    """Name key that ignores word order and plurals, so tape_measure == measuring_tape-ish variants."""
+    return "_".join(sorted(t[:-1] if len(t) > 3 and t.endswith("s") else t for t in name.split("_") if t))
+
+
+def same_item(a: str, b: str) -> bool:
+    return a == b or (UNKNOWN not in (a, b) and _canon(a) == _canon(b))
+
+
 def _mark(v: Any) -> int | None:
     if isinstance(v, bool):
         return None
@@ -283,9 +309,11 @@ def parse_label(text: str, marks: set[int] | list[int], catalog: Catalog) -> dic
             warnings.append(f"mark #{m} is not on the table; ignored")
             continue
         name = resolve(e.get("item", e.get("name", e.get("label"))), catalog.items)
-        if name != UNKNOWN and name not in catalog.items:
-            warnings.append(f"#{m}: {name or 'empty name'!r} is not in the catalog; using unknown")
-            name = UNKNOWN
+        if name not in catalog.items:
+            name = re.sub(r"[^a-z0-9_]+", "", name)         # free-form names are kept (open vocabulary)
+            if name != UNKNOWN and (not _NAME_RE.match(name) or len(name) > MAX_NAME_LEN):
+                warnings.append(f"#{m}: {name or 'empty name'!r} is not a usable item name; using unknown")
+                name = UNKNOWN
         state = _STATE_WORDS.get(norm_name(e.get("state")), "")
         if m in items:
             if items[m]["item"] != name:
@@ -351,9 +379,10 @@ def agree(p1: dict, p2: dict, catalog: Catalog) -> dict:
     b = {it["mark"]: it for it in p2.get("items") or []}
     items = []
     for m in sorted(set(a) & set(b)):
-        if a[m]["item"] == b[m]["item"] and a[m]["item"] != UNKNOWN:
+        if same_item(a[m]["item"], b[m]["item"]) and a[m]["item"] != UNKNOWN:
             st = a[m]["state"] if a[m]["state"] == b[m]["state"] else ""
-            items.append({"mark": m, "item": a[m]["item"], "state": st})
+            name = next((x for x in (a[m]["item"], b[m]["item"]) if x in catalog.items), a[m]["item"])
+            items.append({"mark": m, "item": name, "state": st})
     h1, h2 = label_hazards(p1, catalog), label_hazards(p2, catalog)
     hazards = {t: sorted(h1[t] & h2[t]) for t in sorted(set(h1) & set(h2)) if h1[t] & h2[t]}
     for t, ms in _derived_hazards(items, catalog).items():          # an agreed "open" state
@@ -485,7 +514,9 @@ def label_context(blobs: list[dict], catalog: Catalog, sim_truth: dict | None = 
         lines.append(f"- #{b['id']}: {L * 100:.1f} x {W * 100:.1f} cm, aspect {aspect:.1f}")
     if not blobs:
         lines.append("- (none: the bench looks empty)")
-    lines.append("Catalog items (use these names exactly, or unknown): " + ", ".join(catalog.items))
+    lines.append("Catalog items (use these names exactly when one fits): " + ", ".join(catalog.items))
+    lines.append("Anything else: name it yourself in 1 to 3 lowercase words joined by underscores "
+                 "(for example scissors, tape_measure, beaker). unknown only if you cannot tell.")
     lines.append("Hazard types (use these names exactly): " + ", ".join(catalog.hazards))
     lines.append("Use cases (id: title; needs):")
     for uid, uc in catalog.use_cases.items():
@@ -748,17 +779,17 @@ class LabMate:
     async def fetch(self, item: str) -> Plan:
         self._require_leader()
         cat = self._cat()
-        name = resolve(item, cat.items)
+        items, ts, src = self.latest_labels()
+        name = resolve(item, set(cat.items) | {it["item"] for it in items})
         if not name:
             raise LabError("item is required")
-        if name not in cat.items:
-            raise LabError(f"{item!r} is not in the catalog ({', '.join(cat.items)})")
-        if cat.items[name]["grasp"] == "none":
+        if not _NAME_RE.match(name) or len(name) > MAX_NAME_LEN:
+            raise LabError(f"{item!r} is not a usable item name")
+        if item_spec(cat, name)["grasp"] == "none":
             raise LabError(f"I never pick up a {_name(name)} (grasp: none)")
         act = self.pm.active()
         if act:
             raise PlanBusy(act.plan_id)
-        items, ts, src = self.latest_labels()
         return self._new_plan(f"fetch {name}", "locating",
                               {"mode": "fetch", "fetch": name, "items": items, "labels_ts": ts or None,
                                "labels_from": src, "relabelled": False})
@@ -898,7 +929,7 @@ class LabMate:
             if m in moved:
                 h["status"], h["via"] = "found", moved[m]   # the same object is already being moved
                 continue
-            if it is None or cat.items[it["item"]]["grasp"] == "none":
+            if it is None or item_spec(cat, it["item"])["grasp"] == "none":
                 h["status"] = "needs_human"
                 h["error"] = "I can't pick it up" if it else "I don't know what it is"
                 continue
@@ -921,7 +952,7 @@ class LabMate:
         name = lab["fetch"]
         age = time.time() - float(lab.get("labels_ts") or 0.0)
         blobs = {b["id"]: b for b in compact_blobs((self.blobs_state() or {}).get("blobs") or [])}
-        cands = [it for it in lab.get("items") or [] if it["item"] == name]
+        cands = [it for it in lab.get("items") or [] if same_item(it["item"], name)]
         visible = [it for it in cands if it["mark"] in blobs]
         stale = not lab.get("labels_ts") or age > self.conf["label_max_age_s"] or (cands and not visible)
         if stale and not lab.get("relabelled"):
@@ -1028,7 +1059,6 @@ class LabMate:
         """move_object args in TABLE coordinates (docs/LABMATE.md). The arm re-finds the blob in
         the latest cell.blobs (<= 4 cm) and converts with its own base calibration."""
         cat = self._cat()
-        spec = cat.items[s["item"]]
         st = self.blobs_state() or {}
         blobs = {b["id"]: b for b in compact_blobs(st.get("blobs") or [])}
         b = blobs.get(s["mark"])
@@ -1039,6 +1069,7 @@ class LabMate:
                 raise LabError(f"the {_name(s['item'])} (#{s['mark']}) is no longer visible")
             b = min(near, key=lambda x: _dist(x["table_xy"], known["table_xy"]))
         to_xy, _, to_z = self._drop_point(s["target"], b["id"])
+        spec = item_spec(cat, s["item"], b)
         return {"action": "move_object", "item": s["item"], "blob_id": int(b["id"]),
                 "table_xy": list(b["table_xy"]), "yaw_deg": float(b["yaw_deg"]),
                 "height": float(spec["height"]), "grasp": spec["grasp"],

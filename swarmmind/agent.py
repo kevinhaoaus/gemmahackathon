@@ -487,23 +487,7 @@ def build_app(node: Node) -> FastAPI:
     async def tasks() -> dict:
         return {"tasks": node.tasks.snapshot()}
 
-    # ---- robot cell planner (docs/ROBOT_CELL.md)
-    @app.post("/cell/goal")
-    async def cell_goal(request: Request) -> Response:
-        payload = await request.json()
-        goal = str(payload.get("goal", "")).strip()
-        if not goal:
-            return JSONResponse({"error": "goal is required"}, status_code=400)
-        if node.election.is_leader:
-            try:
-                plan = await node.plans.submit_goal(goal)
-            except PlanBusy as e:
-                return JSONResponse({"error": str(e), "plan_id": e.plan_id}, status_code=409)
-            except PlanError as e:
-                return JSONResponse({"error": str(e)}, status_code=503)
-            return JSONResponse({"plan_id": plan.plan_id, "leader_id": node.cfg.node_id})
-        return await node.forward_to_leader("/cell/goal", {"goal": goal}, request)
-
+    # ---- plans (LabMate runs on the shared plan manager; docs/LABMATE.md)
     @app.get("/cell/plans")
     async def cell_plans() -> dict:
         return {"plans": node.plans.snapshot()}

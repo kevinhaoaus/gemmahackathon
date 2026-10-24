@@ -24,7 +24,7 @@ SO-101 (backup arm) ── USB ── Thor or a MacBook, later      advertises a
 
 ## Rules
 
-1. **Gemma names things; code places things.** Gemma labels numbered marks from the fixed catalog and picks the experiment from the fixed list. Positions come from the AprilTag-calibrated table. Gemma never outputs coordinates.
+1. **Gemma names things; code places things.** Gemma labels numbered marks and picks the experiment from the fixed list. It uses a catalog name when one fits, and otherwise names the object itself (`scissors`, `tape_measure`, `beaker`: open vocabulary). A name outside the catalog gets a default grip (kind `other`, 3 cm high, grasped across if the blob is long and thin), and the two labelling passes still agree if they word it a little differently (`tape_measure` / `measuring_tape` ignore word order and plurals). `robot_arm`, `robot` and `gripper` are never picked up. Positions come from the AprilTag-calibrated table. Gemma never outputs coordinates.
 2. **Arm tasks carry TABLE coordinates plus an item reference, never arm coordinates.** Each arm converts to its own frame with its own `base` calibration, and **re-finds the item in the latest `cell.blobs` before moving**. If the item isn't within 4 cm of where it was expected, the task fails with "object not where expected". It never grabs blindly after a handover.
 3. **Plug-in detection.** The `arm.cell` capability is advertised only while the arm is connected and answering (`tasks.set_availability`).
 4. **Hazards** are a fixed list. Each type is **movable** (the arm may relocate it) or **report-only** (never touched). Ranking is deterministic, safety first. Before moving a hazard, the robot announces it and waits `confirm_s` (default 5 s) for a cancel.
@@ -95,7 +95,7 @@ The arm publishes `arm.cell.<arm_id>.state`. When several nodes offer `arm.cell`
 ## LabMate flows (leader; replicated plans that resume on failover)
 
 **Inspect: `POST /lab/inspect`**
-1. Label with Gemma: the marked frame goes to a `kind:"label"` job. Gemma answers JSON `{"items":[{"mark":3,"item":"superglue","state":"open"}], "hazards":[{"type":"open_container","marks":[3]}], "use_case":"stepper_test"|"unknown"}`, validated against the catalog. This runs twice on frames ≥ 1 s apart and keeps only what agrees.
+1. Label with Gemma: the marked frame goes to a `kind:"label"` job. Gemma answers JSON `{"items":[{"mark":3,"item":"superglue","state":"open"}], "hazards":[{"type":"open_container","marks":[3]}], "use_case":"stepper_test"|"unknown"}`, validated against the catalog (hazards and the use case must match; item names may be free-form). This runs twice on frames ≥ 1 s apart and keeps only what agrees.
 2. Rank hazards in code by severity, then by distance to the bench edge.
 3. For each **movable** hazard: announce, wait `confirm_s`, then `move_object` to `safe_tray`, then re-label to verify.
 4. Use case: candidates from the catalog plus Gemma's guess, computed in code. `missing = needs − seen`.
