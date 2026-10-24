@@ -1213,7 +1213,7 @@
 
   // ---------------------------------------------------------------- polled JPEG views (1 s): annotated cell frame, LabMate marks
   // Fetched as blobs so a 404/timeout shows a message instead of a broken image; the previous blob is freed once the new one shows.
-  function framePoller(path, ids, texts, skip, capExtra) {
+  function framePoller(path, ids, texts, skip, capExtra, hostFn) {
     var busy = false, url = null, shown = null;
     $(ids.img).onload = function () {
       if (shown && shown !== url) { try { URL.revokeObjectURL(shown); } catch (e) { /* ignore */ } }
@@ -1224,7 +1224,7 @@
       var nf = $(ids.none); nf.style.display = 'block'; nf.textContent = text;
     }
     return function tick() {
-      var host = S.host;
+      var host = hostFn ? hostFn() : S.host;      // hostFn: poll a specific node (e.g. the bench camera node)
       if (!host || !S.wsOpen || busy || (skip && skip())) return;
       busy = true;
       var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -1239,7 +1239,7 @@
         })
         .then(function (blob) {
           clearTimeout(timer); busy = false;
-          if (S.host !== host) return;
+          if (!hostFn && S.host !== host) return;
           url = URL.createObjectURL(blob);
           var f = $(ids.img);
           f.src = url; f.style.display = 'block'; $(ids.none).style.display = 'none';
@@ -1247,7 +1247,7 @@
           $(ids.node).textContent = label;
         }, function (e) {
           clearTimeout(timer); busy = false;
-          if (S.host !== host) return;
+          if (!hostFn && S.host !== host) return;
           noFrame(e && e.status === 404 ? texts.missing : texts.down);
           $(ids.cap).textContent = (e && e.status ? 'HTTP ' + e.status : 'unreachable') + ' from ' + hostLabel(host);
           $(ids.node).textContent = label;
@@ -1264,7 +1264,12 @@
       var n = Array.isArray(d.blobs) ? d.blobs.length : 0;
       return ' · ' + n + ' blob' + (n === 1 ? '' : 's') + (d.calibrated === false ? ' · NOT CALIBRATED' : '') +
         (d.background === false ? ' · no background snapshot' : '') + ' · ' + ageText(b);
-    });
+    },
+    function () { var n = benchNode(); return n ? addrOfNode(n) : S.host; });   // the node whose camera runs the perception
+  function benchNode() {
+    var l = nodeList().filter(function (n) { return n.alive !== false && capsOf(n).indexOf('vision.cell') >= 0 && addrOfNode(n); });
+    return l.length ? l[0] : null;
+  }
   setInterval(markedTick, CELL_FRAME_EVERY_MS);
 
   // ================================================================ LabMate (docs/LABMATE.md)
@@ -1883,51 +1888,57 @@
     if (lastCalib !== ok) { lastCalib = ok; markedTick(); }
   }
 
-  var cam = { busy: false, data: null, err: '', lastAuto: 0, autoDone: false, id: null };
-  function camTarget() {
-    var self = S.self || (S.peers[S.host] || {}).node_id, sn = self && S.nodes[self];
-    if (S.host && S.wsOpen && sn && capsOf(sn).indexOf('camera') >= 0) return { addr: S.host, id: self };
-    var l = nodeList().filter(function (n) { return n.alive !== false && capsOf(n).indexOf('camera') >= 0 && addrOfNode(n); });
-    return l.length ? { addr: addrOfNode(l[0]), id: l[0].node_id } : null;
+  var cam = { busy: false, nodes: {}, err: '', lastAuto: 0, autoDone: false };
+  function camTargets() {
+    return nodeList().filter(function (n) { return n.alive !== false && capsOf(n).indexOf('camera') >= 0 && addrOfNode(n); })
+      .map(function (n) { return { addr: addrOfNode(n), id: n.node_id }; });
   }
   function scanCams() {
-    var t = camTarget();
+    var ts = camTargets();
     if (cam.busy) return;
-    if (!t) { cam.err = 'no alive node with the camera capability'; render.lab = true; schedule(); return; }
-    cam.busy = true; cam.err = ''; cam.id = t.id; cam.lastAuto = now(); render.lab = true; schedule();
-    fetchJSON(HTTP + t.addr + '/cameras', null, 25000).then(function (b) {
-      cam.busy = false; cam.data = b; render.lab = true; schedule();
-    }, function (e) {
-      cam.busy = false; cam.err = 'scan failed on ' + t.id + ': ' + e.message; render.lab = true; schedule();
+    if (!ts.length) { cam.err = 'no alive node with the camera capability'; render.lab = true; schedule(); return; }
+    cam.busy = true; cam.err = ''; cam.lastAuto = now(); render.lab = true; schedule();
+    var left = ts.length;
+    ts.forEach(function (t) {
+      fetchJSON(HTTP + t.addr + '/cameras', null, 25000).then(
+        function (b) { cam.nodes[t.id] = { addr: t.addr, data: b, err: '' }; },
+        function (e) { cam.nodes[t.id] = { addr: t.addr, data: null, err: 'scan failed: ' + e.message }; }
+      ).then(function () { if (--left === 0) { cam.busy = false; render.lab = true; schedule(); } });
     });
   }
-  function selectCam(index) {
-    var t = camTarget();
-    if (!t) return;
-    fetchJSON(HTTP + t.addr + '/camera/select', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ index: index }) }, 8000)
-      .then(function () { setTimeout(scanCams, 1500); }, function (e) { cam.err = 'select failed: ' + e.message; render.lab = true; schedule(); });
-    cam.err = 'switching to camera ' + index + '…'; render.lab = true; schedule();
+  function selectCam(id, index) {
+    var nd = cam.nodes[id];
+    if (!nd) return;
+    fetchJSON(HTTP + nd.addr + '/camera/select', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ index: index }) }, 8000)
+      .then(function () { setTimeout(scanCams, 1500); }, function (e) { cam.err = 'select failed on ' + id + ': ' + e.message; render.lab = true; schedule(); });
+    cam.err = id + ': switching to camera ' + index + '…'; render.lab = true; schedule();
   }
   $('scanbtn').addEventListener('click', scanCams);
   function renderCam() {
-    var t = camTarget();
-    if (!cam.busy && t && (!cam.autoDone || (calibState() === false && now() - cam.lastAuto > 30000))) { cam.autoDone = true; setTimeout(scanCams, 0); }
+    var ts = camTargets();
+    if (!cam.busy && ts.length && (!cam.autoDone || (calibState() === false && now() - cam.lastAuto > 30000))) { cam.autoDone = true; setTimeout(scanCams, 0); }
     $('scanbtn').disabled = cam.busy;
     $('scanbtn').textContent = cam.busy ? 'Scanning…' : 'Scan cameras';
-    var d = cam.data, cur = null;
-    if (d && d.current !== undefined && d.current !== null) { var m = String(d.current).match(/(\d+)/); cur = m ? Number(m[1]) : null; }
-    $('camcur').textContent = cam.err || (d ? 'current: ' + d.current + (cam.id ? ' · on ' + cam.id : '') : '');
+    var bn = benchNode(), ids = Object.keys(cam.nodes).sort();
+    $('camcur').textContent = cam.err || (ids.length ? ids.length + ' camera node' + (ids.length === 1 ? '' : 's') : '');
     var box = $('camlist');
     box.textContent = '';
-    (d && Array.isArray(d.cameras) ? d.cameras : []).forEach(function (c) {
-      var b = el('button', 'camopt' + (c.index === cur ? ' cur' : ''));
-      b.type = 'button';
-      if (c.jpeg_b64) { var im = el('img'); im.alt = 'camera ' + c.index; im.src = 'data:image/jpeg;base64,' + c.jpeg_b64; b.appendChild(im); }
-      var cc = el('div', 'cc', 'cam ' + c.index + (c.index === cur ? ' ✓ current' : ''));
-      cc.appendChild(el('small', null, 'tags: ' + (Array.isArray(c.tags) && c.tags.length ? '[' + c.tags.join(', ') + ']' : 'none') + ' · bright ' + (c.mean !== undefined ? Math.round(c.mean) : '?')));
-      b.appendChild(cc);
-      b.addEventListener('click', function () { selectCam(c.index); });
-      box.appendChild(b);
+    ids.forEach(function (id) {
+      var nd = cam.nodes[id], d = nd.data, cur = null;
+      if (d && d.current !== undefined && d.current !== null) { var m = String(d.current).match(/(\d+)/); cur = m ? Number(m[1]) : null; }
+      var head = el('div', 'camhead', id + (bn && bn.node_id === id ? ' · bench camera (AprilTags + marks)' : ' · plain camera') + (nd.err ? ' · ' + nd.err : ''));
+      head.style.cssText = 'grid-column:1/-1;font-weight:700;margin:.5rem 0 .1rem';
+      box.appendChild(head);
+      (d && Array.isArray(d.cameras) ? d.cameras : []).forEach(function (c) {
+        var b = el('button', 'camopt' + (c.index === cur ? ' cur' : ''));
+        b.type = 'button';
+        if (c.jpeg_b64) { var im = el('img'); im.alt = id + ' camera ' + c.index; im.src = 'data:image/jpeg;base64,' + c.jpeg_b64; b.appendChild(im); }
+        var cc = el('div', 'cc', 'cam ' + c.index + (c.index === cur ? ' ✓ current' : ''));
+        cc.appendChild(el('small', null, 'tags: ' + (Array.isArray(c.tags) && c.tags.length ? '[' + c.tags.join(', ') + ']' : 'none') + ' · bright ' + (c.mean !== undefined ? Math.round(c.mean) : '?')));
+        b.appendChild(cc);
+        b.addEventListener('click', function () { selectCam(id, c.index); });
+        box.appendChild(b);
+      });
     });
   }
   function labStop(p) {
