@@ -17,6 +17,7 @@ import json
 import math
 import os
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -331,6 +332,10 @@ def make_driver(args, base: list[float] | None = None):
         "gripper_open_rad": cal.get("gripper_open_rad", 0.0),
         "gripper_closed_rad": cal.get("gripper_closed_rad", 0.0),
         "gripper_vlim": 1.0,
+        "gripper_squeeze_rad": math.radians(getattr(args, "grip_squeeze_deg", 3.0)),
+        # force_pos = Damiao force-position mode (a real force cap); posvel = position + contact back-off
+        "gripper_mode": "force_pos" if getattr(args, "grip_force", 0) else "posvel",
+        "gripper_force_ratio": getattr(args, "grip_force", 0) or 0.3,
     }
     return RebotArm(cfg)
 
@@ -427,20 +432,28 @@ def cmd_arm_read(args) -> None:
 
 # ---------------------------------------------------------------- jog shell (sync, main thread)
 
+MAX_JOINT_SPEED_DEG = 60.0     # hard ceiling for `speed` / --joint-speed, deg/s
+
+
 class Jog:
-    """Torque-off by default. Every motion: joint-space, <= max_step per command, speed-capped."""
+    """Torque-off by default. Every motion: joint-space, <= max_step per command, speed-capped.
+    Thread-safe (the GUI polls status while a motion runs): bus I/O goes through `lock`, and
+    `abort` (set by stop) interrupts a motion mid-way and holds where the arm is."""
 
     def __init__(self, drv, args):
         self.drv, self.args = drv, args
         self.cap = math.radians(args.max_step)
-        self.speed = math.radians(args.joint_speed)          # rad/s
+        self.speed = math.radians(min(args.joint_speed, MAX_JOINT_SPEED_DEG))   # rad/s
+        self.lock = threading.RLock()
+        self.abort = threading.Event()
         self.enabled = False
         self.home_q = None
         self.touches: list[tuple[list[float], list[float]]] = []   # (table xy, FK xyz)
 
     # -- state
     def read_motor(self) -> np.ndarray:
-        states = read_states(self.drv, 1)
+        with self.lock:
+            states = read_states(self.drv, 1)
         bad = [n for n, s in states if s is None]
         if bad:
             raise ConnectionError(f"no feedback from {bad} (24 V off?)")
@@ -450,10 +463,15 @@ class Jog:
         return self.drv.motor_to_urdf(self.read_motor())
 
     # -- torque
-    def enable(self) -> None:
-        if input("Torque ON. The arm will hold its current pose. Type ENABLE to continue: ").strip() != "ENABLE":
+    def enable(self, confirm: bool = True) -> None:
+        """confirm=False only for callers that already asked (the GUI's confirmation dialog)."""
+        if confirm and input("Torque ON. The arm will hold its current pose. Type ENABLE to continue: ").strip() != "ENABLE":
             print("not enabled")
             return
+        with self.lock:
+            self._enable_locked()
+
+    def _enable_locked(self) -> None:
         drv = self.drv
         for i, m in enumerate(drv.motors):
             try:
@@ -474,12 +492,22 @@ class Jog:
         print("ENABLED. Ctrl-C or 'disable' = torque OFF (the arm goes limp: support it).")
 
     def hold(self, motor_pos) -> None:
-        for i, m in enumerate(self.drv.motors):
-            m.send_pos_vel(float(motor_pos[i]), 0.3)
+        with self.lock:
+            for i, m in enumerate(self.drv.motors):
+                m.send_pos_vel(float(motor_pos[i]), 0.3)
+
+    def stop(self) -> None:
+        """Interrupt any motion and hold the current position (torque stays ON)."""
+        self.abort.set()
+        if self.enabled:
+            self.hold(self.read_motor())
+            print("holding")
 
     def disable(self) -> None:
+        self.abort.set()
         try:
-            self.drv.ctrl.disable_all()
+            with self.lock:
+                self.drv.ctrl.disable_all()
         except Exception as e:  # noqa: BLE001
             print(f"disable_all failed: {e}")
         self.enabled = False
@@ -506,12 +534,17 @@ class Jog:
                 return
         dur = max(big / self.speed, 0.3)
         n = max(1, math.ceil(dur * 50))
-        vlim = np.full(6, min(1.5 * self.speed, math.radians(30)))
+        vlim = np.full(6, min(1.5 * self.speed, math.radians(1.5 * MAX_JOINT_SPEED_DEG)))
+        self.abort.clear()
         t0 = time.monotonic()
         for k in range(1, n + 1):
+            if self.abort.is_set():
+                print("stopped mid-move")
+                return
             s = k / n
             s = s * s * (3 - 2 * s)
-            drv._send_sync(drv.urdf_to_motor(q0 + d * s), vlim)
+            with self.lock:
+                drv._send_sync(drv.urdf_to_motor(q0 + d * s), vlim)
             delay = t0 + k / 50 - time.monotonic()
             if delay > 0:
                 time.sleep(delay)
@@ -534,7 +567,8 @@ class Jog:
             print(f"refused: gripper delta {math.degrees(target_rad - cur):.1f} deg > "
                   f"{self.args.max_grip_step} deg (use g +/-deg, or measure open/closed first)")
             return
-        self.drv.motors[6].send_pos_vel(float(target_rad), 1.0)
+        with self.lock:
+            self.drv.motors[6].send_pos_vel(float(target_rad), 1.0)
         time.sleep(1.0)
         print(f"gripper motor now {math.degrees(float(self.read_motor()[6])):+.1f} deg")
 
@@ -653,9 +687,7 @@ def run_shell(args, calib_mode: bool) -> None:
                 elif c == "disable":
                     jog.disable()
                 elif c == "stop":
-                    if jog.enabled:
-                        jog.hold(jog.read_motor())
-                        print("holding")
+                    jog.stop()
                 elif len(c) == 2 and c[0] == "j" and c[1] in "123456" and len(p) == 2:
                     q = jog.read_q()
                     q[int(c[1]) - 1] += math.radians(float(p[1]))
@@ -699,8 +731,8 @@ def run_shell(args, calib_mode: bool) -> None:
                 elif c == "solve":
                     jog.solve()
                 elif c == "speed" and len(p) == 2:
-                    jog.speed = math.radians(min(float(p[1]), 30.0))
-                    print(f"joint speed {math.degrees(jog.speed):.0f} deg/s (max 30)")
+                    jog.speed = math.radians(min(float(p[1]), MAX_JOINT_SPEED_DEG))
+                    print(f"joint speed {math.degrees(jog.speed):.0f} deg/s (max {MAX_JOINT_SPEED_DEG:.0f})")
                 else:
                     print("? (help)")
             except KeyboardInterrupt:
@@ -768,7 +800,7 @@ class ArmRunner:
     def busy(self) -> bool:
         return self.fut is not None and not self.fut.done()
 
-    def start_job(self, grasp, place_t, yaw, approach) -> None:
+    def start_job(self, grasp, place_t, yaw, approach, grip_value=None) -> None:
         from swarmmind.cell.arm import pick, place
 
         async def job():
@@ -777,7 +809,8 @@ class ArmRunner:
             async def prog(p):
                 self.msg = f"{p['step']}: {p['sub']}"
                 print(f"  {self.msg} {p.get('target', '')}")
-            await pick(self.safety, *grasp, yaw=yaw, approach_h=approach, progress=prog, gen=gen)
+            await pick(self.safety, *grasp, yaw=yaw, approach_h=approach, progress=prog, gen=gen,
+                       grip_value=grip_value)
             await place(self.safety, *place_t, yaw=yaw, approach_h=approach, progress=prog, gen=gen)
             self.msg = "done"
         self.fut = self.asyncio.run_coroutine_threadsafe(job(), self.loop)
@@ -814,7 +847,7 @@ def cmd_pick(args) -> None:
     t_end = time.time() + args.seconds if args.seconds else None
 
     def plan_for(src, dst):
-        sx, sy, syaw = src
+        sx, sy, syaw = src[:3]
         dx, dy = dst
         yaw = fold90(P.yaw_table_to_arm(syaw + 90.0, base))       # fingers close across the long axis
         g = P.table_to_arm([sx, sy, args.height], base)
@@ -827,9 +860,22 @@ def cmd_pick(args) -> None:
                 drv.check_reachable(t[0], t[1], z, yaw)            # IK, tool down
         return g, pl, yaw
 
+    def grip_for(blob) -> tuple[float | None, str]:
+        """Linear model: gripper value from the object's width seen by the camera (short side)."""
+        from swarmmind.cell.arm import width_to_grip
+        if blob is None or not blob.get("width_m"):
+            return None, "no object width (raw click): closes until contact"
+        w = float(blob["width_m"])
+        v = width_to_grip(w, args.grip_open_cm / 100, args.squeeze_mm / 1000)
+        return v, (f"object width {w * 100:.1f} cm -> gripper to {v * args.grip_open_cm:.1f} cm "
+                   f"(value {v:.2f}, squeeze {args.squeeze_mm:.0f} mm)")
+
     def select(xy, blob=None):
         nonlocal state, sel
-        sel = (blob["table_xy"][0], blob["table_xy"][1], blob["yaw_deg"]) if blob else (xy[0], xy[1], 0.0)
+        gv, gmsg = grip_for(blob)
+        sel = ((blob["table_xy"][0], blob["table_xy"][1], blob["yaw_deg"], gv) if blob
+               else (xy[0], xy[1], 0.0, gv))
+        print(f"grip: {gmsg}")
         vis.marks = [("PICK", sel[:2], (0, 255, 255))]
         state = "place"
         vis.status = "click the DESTINATION   (n = cancel)"
@@ -901,7 +947,7 @@ def cmd_pick(args) -> None:
                     print("enabling the arm (torque ON) ...")
                     runner.connect()
                 g, pl, yaw = plan
-                runner.start_job(g, pl, yaw, args.approach)
+                runner.start_job(g, pl, yaw, args.approach, grip_value=sel[3])
                 state = "run"
             if t_end and time.time() > t_end:
                 break
@@ -925,8 +971,12 @@ def main(argv=None) -> None:
 
     def arm_args(p):
         p.add_argument("--port", default="COM5")
+        p.add_argument("--grip-squeeze-deg", type=float, default=3.0,
+                       help="on contact, hold this far past where the fingers stopped (gentle grip)")
+        p.add_argument("--grip-force", type=float, default=0.0,
+                       help="0 = position mode; 0.05-1 = Damiao force-position mode with this force ratio")
         p.add_argument("--baud", type=int, default=921600)
-        p.add_argument("--joint-speed", type=float, default=15.0, help="deg/s joint speed cap (default 15)")
+        p.add_argument("--joint-speed", type=float, default=30.0, help="deg/s joint speed cap (default 30, max 60)")
 
     c = sub.add_parser("cam", help="live camera, tags, grid, blobs")
     c.add_argument("--camera", type=int, default=1)
@@ -935,11 +985,12 @@ def main(argv=None) -> None:
     r = sub.add_parser("arm-read", help="READ-ONLY motor status")
     arm_args(r)
     r.add_argument("-n", type=int, default=3, help="number of reads")
-    for name in ("arm-jog", "calib-base"):
+    for name in ("arm-jog", "calib-base", "jog-gui"):
         j = sub.add_parser(name)
         arm_args(j)
-        j.add_argument("--max-step", type=float, default=10.0, help="max joint delta per command, deg")
-        j.add_argument("--max-grip-step", type=float, default=30.0, help="max gripper delta per command, deg")
+        j.add_argument("--max-step", type=float, default=30.0, help="max joint delta per command, deg (default 30)")
+        j.add_argument("--max-grip-step", type=float, default=90.0, help="max gripper delta per command, deg")
+        j.add_argument("--seconds", type=float, default=0, help=argparse.SUPPRESS)   # GUI smoke test
     k = sub.add_parser("pick", help="camera + arm pick and place")
     arm_args(k)
     k.add_argument("--camera", type=int, default=1)
@@ -947,8 +998,15 @@ def main(argv=None) -> None:
     k.add_argument("--height", type=float, default=0.02, help="grip height above the table, m")
     k.add_argument("--approach", type=float, default=0.08, help="approach height above grip, m")
     k.add_argument("--dry-run", action="store_true", help="plan and show, never connect or move")
+    k.add_argument("--grip-open-cm", type=float, default=10.0, help="finger gap when fully open (linear model)")
+    k.add_argument("--squeeze-mm", type=float, default=5.0, help="close this much narrower than the object")
     k.add_argument("--seconds", type=float, default=0, help="auto-quit after N s (testing)")
     args = ap.parse_args(argv)
+    if args.cmd == "jog-gui":
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from jog_gui import run_gui
+        run_gui(args)
+        return
     {"cam": cmd_cam, "arm-read": cmd_arm_read, "arm-jog": cmd_arm_jog, "calib-base": cmd_calib_base,
      "pick": cmd_pick}[args.cmd](args)
 

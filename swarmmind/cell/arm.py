@@ -366,9 +366,18 @@ class Safety:
 
 
 # ====================================================================== primitives
+def width_to_grip(width_m: float, open_width_m: float = 0.10, squeeze_m: float = 0.005) -> float:
+    """Linear gripper model: value 1.0 = fully open (open_width_m apart), 0.0 = closed (0 cm).
+    Close to (object width - squeeze) instead of fully shut, so the fingers stop near the part."""
+    if open_width_m <= 0:
+        raise ValueError("open_width_m must be > 0")
+    return min(1.0, max(0.0, (float(width_m) - float(squeeze_m)) / float(open_width_m)))
+
+
 async def pick(arm: Safety, x: float, y: float, z: float, yaw: float = 0.0,
                approach_h: Optional[float] = None, speed: Optional[float] = None,
-               progress: Optional[Progress] = None, gen: Optional[int] = None) -> dict:
+               progress: Optional[Progress] = None, gen: Optional[int] = None,
+               grip_value: Optional[float] = None) -> dict:
     """open -> approach (lift first if below, then above the part) -> descend slowly -> close ->
     retreat straight up. Every waypoint is validated (always reject) before anything moves."""
     progress = progress or _noop_progress
@@ -395,8 +404,9 @@ async def pick(arm: Safety, x: float, y: float, z: float, yaw: float = 0.0,
     await _approach(arm, above, travel, gen)
     await mark(2, "descend", target=_xyz(grasp), speed=arm.slow_speed)
     await arm.move_to(grasp["x"], grasp["y"], grasp["z"], grasp["yaw"], arm.slow_speed, gen=gen, allow_clamp=False)
-    await mark(3, "grip", value=arm.grip_close)
-    await arm.gripper(arm.grip_close, gen=gen)
+    close = arm.grip_close if grip_value is None else min(1.0, max(0.0, float(grip_value)))
+    await mark(3, "grip", value=close)
+    await arm.gripper(close, gen=gen)
     await mark(4, "retreat", target=_xyz(above), speed=arm.retreat_speed)
     await arm.move_to(above["x"], above["y"], above["z"], above["yaw"], arm.retreat_speed, gen=gen, allow_clamp=False)
     await progress({"step": "pick", "sub": "done", "i": n, "n": n, "pct": 100})

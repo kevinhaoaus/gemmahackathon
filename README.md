@@ -13,13 +13,15 @@ Fastest route to a real pick-and-place is steps 1–7; everything else can wait.
 | # | Command (from the repo root) | Pass when |
 |---|---|---|
 | 0 | `.venv\Scripts\pip install motorbridge` | installs (needs internet once; it's the reBot SDK, not a model) |
-| 1 | `.venv\Scripts\python scriptsench.py cam` | ~26 fps, tags 0–3 green, **CALIBRATED** < 2 px. Click a spot and its x/y in cm matches a ruler from tag 0 (x toward tag 3, y toward tag 1). Clear the table, press `b`, then put an object down: it gets a number. `q` quits |
-| 2 | `.venv\Scripts\python scriptsench.py arm-read` | **read-only**: prints every motor's position, velocity and temperature with no errors. Nothing moves. If it fails: power, COM port, baud (see BENCH.md) |
-| 3 | `.venv\Scripts\python scriptsench.py arm-jog` | type `ENABLE`; `j1 +5` … `j6 +5` each move the expected joint the expected way (note any reversed joint); `home` works; `stop` holds; `disable` (support the arm) |
-| 4 | in arm-jog: `grip set-open`, `grip set-closed` | the gripper's open/closed angles are saved; `grip open` / `grip close` work |
-| 5 | `.venv\Scripts\python scriptsench.py calib-base` | jog the gripper tip onto ≥ 3 tag centres (`touch 0`, `touch 1`, `touch 3`), then `solve`: **RMS residual < 5 mm**. Paste the printed `base: [...]` into `configs/laptop.yaml` → `arm.cell.base` |
-| 6 | `.venv\Scripts\python scriptsench.py pick --dry-run` | click an object, then a destination: the plan is drawn on the image, arm targets are printed, and it reports reachable. Nothing moves |
-| 7 | `.venv\Scripts\python scriptsench.py pick --height 0.02 --approach 0.08` | press `y`: the arm goes above the object, descends slowly, grips, lifts, carries, places, retreats. SPACE stops at any time. Start with something light and grippable (a marker), then a screwdriver / spring |
+| 1 | `.venv\Scripts\python scripts\bench.py cam` | ~26 fps, tags 0–3 green, **CALIBRATED** < 2 px. Click a spot and its x/y in cm matches a ruler from tag 0 (x toward tag 3, y toward tag 1). Clear the table, press `b`, then put an object down: it gets a number. `q` quits |
+| 2 | `.venv\Scripts\python scripts\bench.py arm-read` | **read-only**: prints every motor's position, velocity and temperature with no errors. Nothing moves. If it fails: power, COM port, baud (see BENCH.md) |
+| 3 | `.venv\Scripts\python scripts\bench.py jog-gui` (buttons) or `arm-jog` (typed) | type `ENABLE`; `j1 +5` … `j6 +5` each move the expected joint the expected way (note any reversed joint); `home` works; `stop` holds; `disable` (support the arm) |
+| 4 | gripper: jog it fully open, then **Save as OPEN** (`grip set-open`); jog it closed on nothing, then **Save as CLOSED** (`grip set-closed`) | the gripper's open/closed angles are saved; `grip open` / `grip close` work |
+| 5 | `.venv\Scripts\python scripts\bench.py calib-base` | jog the gripper tip onto ≥ 3 tag centres (`touch 0`, `touch 1`, `touch 3`), then `solve`: **RMS residual < 5 mm**. Paste the printed `base: [...]` into `configs/laptop.yaml` → `arm.cell.base` |
+| 6 | `.venv\Scripts\python scripts\bench.py pick --dry-run` | click an object, then a destination: the plan is drawn on the image, arm targets are printed, and it reports reachable. Nothing moves |
+| 7 | `.venv\Scripts\python scripts\bench.py pick --height 0.02 --approach 0.08` | press `y`: the arm goes above the object, descends slowly, grips, lifts, carries, places, retreats. SPACE stops at any time. Start with something light and grippable (a marker), then a screwdriver / spring |
+
+**Gripper width:** pick closes to *(object width seen by the camera − 5 mm)* using a linear model (0 cm = closed, 10 cm = open), and on contact it holds just past where the fingers stopped instead of squeezing. Tune with `pick --squeeze-mm 3` (gentler) or `--grip-squeeze-deg 2`. Untested option: `--grip-force 0.2` (Damiao force-position mode, a real force cap). In `jog-gui`, the gripper **width** slider tests the model by hand.
 
 **After pick-and-place works, test the full system:**
 
