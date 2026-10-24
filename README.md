@@ -62,6 +62,7 @@ A node lists `capabilities: ["arm.so101"]` in its YAML and advertises it in its 
 
 ```bash
 .venv\Scripts\python scripts\simulate.py               # 3 local nodes + mock LLMs; CLI: ask / kill / revive / sick / heal
+.venv\Scripts\python scripts\simulate.py --real        # same 3 nodes, but all on the real local gemma4:e4b (real answers)
 .venv\Scripts\python -m pytest -q tests                 # failover + task bus tests
 python -m swarmmind.agent --config configs/laptop.yaml  # a real node; dashboard at http://<node>:8700/
 ```

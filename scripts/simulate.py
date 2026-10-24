@@ -1,6 +1,8 @@
 """One-machine swarm simulator: 3 mock LLMs + 3 nodes, with an interactive chaos CLI.
 
-    python scripts/simulate.py            (from the repo root)
+    python scripts/simulate.py            (from the repo root) fake LLMs, canned answer
+    python scripts/simulate.py --real     all 3 nodes use the local Ollama (gemma4:e4b):
+                                          real answers, real mid-sentence handoffs
 
 Logs go to data/sim/logs/<name>.log (nodes: sim_a.., mocks: mock_a..); `tail a` shows them.
 Importable for tests:  from scripts.simulate import SimCluster
@@ -62,13 +64,43 @@ def _port_open(port: int, path: str, timeout: float = 0.5) -> bool:
         return False
 
 
+def ports_in_use(include_mocks: bool = True) -> list[str]:
+    """Sim ports already bound by something else (usually another simulator still running)."""
+    import socket
+    busy = []
+    for n in NODES.values():
+        checks = [(socket.SOCK_STREAM, n.http_port), (socket.SOCK_DGRAM, 50000 + int(n.http_port) % 10)]
+        if include_mocks:
+            checks.append((socket.SOCK_STREAM, n.mock_port))
+        for kind, port in checks:
+            s = socket.socket(socket.AF_INET, kind)
+            try:
+                s.bind(("127.0.0.1", port))
+            except OSError:
+                busy.append(f"{'udp' if kind == socket.SOCK_DGRAM else 'tcp'}/{port}")
+            finally:
+                s.close()
+    return busy
+
+
+def _ollama_ok(url: str) -> bool:
+    try:
+        return httpx.get(url.rstrip("/") + "/api/tags", timeout=1.0).status_code == 200
+    except httpx.HTTPError:
+        return False
+
+
 class SimCluster:
     """Owns the 6 child processes. Every child runs with cwd = repo root and its own process
     group / session, so Ctrl+C in the CLI does not reach them; stop() kills them all."""
 
-    def __init__(self, log_dir: str | os.PathLike | None = None, tps_scale: float = 1.0) -> None:
+    def __init__(self, log_dir: str | os.PathLike | None = None, tps_scale: float = 1.0,
+                 real_ollama: str | None = None, real_model: str = "gemma4:e4b") -> None:
         self.log_dir = Path(log_dir) if log_dir else ROOT / "data" / "sim" / "logs"
         self.tps_scale = tps_scale                # >1 speeds up every mock LLM (handy in tests)
+        # real mode: no mocks; every node talks to this one Ollama (one GPU, shared model)
+        self.real_ollama = real_ollama
+        self.real_model = real_model
         self.nodes: dict[str, subprocess.Popen[bytes]] = {}
         self.mocks: dict[str, subprocess.Popen[bytes]] = {}
         self._logs: list[IO[bytes]] = []
@@ -100,8 +132,24 @@ class SimCluster:
             except subprocess.TimeoutExpired:
                 pass
 
+    def _config_for(self, k: str) -> str:
+        """Sim config path; in real mode a generated copy pointing at the real Ollama."""
+        n = NODES[k]
+        if not self.real_ollama:
+            return n.config
+        import yaml
+        with open(ROOT / n.config, encoding="utf-8") as f:
+            cfg = yaml.safe_load(f)
+        cfg.update(ollama_url=self.real_ollama, model=self.real_model, num_predict=200)
+        out = ROOT / "data" / "sim" / "cfg" / f"{n.node_id}.yaml"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
+        return str(out.relative_to(ROOT))
+
     def _start_mock(self, k: str, wait: bool = True) -> None:
         n = NODES[k]
+        if self.real_ollama:
+            return
         if self.mock_alive(k):
             return
         self.mocks[k] = self._spawn(f"mock_{k}", [
@@ -113,7 +161,7 @@ class SimCluster:
     def _start_node(self, k: str) -> None:
         if not self.alive(k):
             self.nodes[k] = self._spawn(NODES[k].node_id,
-                                        ["-m", "swarmmind.agent", "--config", NODES[k].config])
+                                        ["-m", "swarmmind.agent", "--config", self._config_for(k)])
 
     @staticmethod
     def _wait(cond: Any, timeout: float) -> bool:
@@ -130,7 +178,8 @@ class SimCluster:
         node answers GET /peers; returns whether they all came up in time."""
         for k in NODES:
             self._start_mock(k, wait=False)
-        self._wait(lambda: all(_port_open(NODES[k].mock_port, "/api/tags") for k in NODES), 15)
+        if not self.real_ollama:
+            self._wait(lambda: all(_port_open(NODES[k].mock_port, "/api/tags") for k in NODES), 15)
         for k in NODES:
             self._start_node(k)
         return self.wait_ready(timeout) if wait else True
@@ -157,9 +206,13 @@ class SimCluster:
 
     def sick(self, name: str) -> None:
         """Kill this node's mock LLM: the node stays up but its health check fails."""
+        if self.real_ollama:
+            raise ValueError("sick/heal need mock mode (all nodes share one real Ollama); use kill/revive")
         self._kill(self.mocks.pop(_key(name), None))
 
     def heal(self, name: str) -> None:
+        if self.real_ollama:
+            raise ValueError("sick/heal need mock mode (all nodes share one real Ollama); use kill/revive")
         self._start_mock(_key(name), wait=True)
 
     def alive(self, name: str) -> bool:
@@ -167,6 +220,8 @@ class SimCluster:
         return p is not None and p.poll() is None
 
     def mock_alive(self, name: str) -> bool:
+        if self.real_ollama:
+            return _ollama_ok(self.real_ollama)
         p = self.mocks.get(_key(name))
         return p is not None and p.poll() is None
 
@@ -206,10 +261,11 @@ HELP = """commands:
   status                 GET /peers from any alive node
   ask <question>         POST /ask, then stream the answer (Ctrl+C stops watching)
   kill <a|b|c>           hard-kill a node process        revive <a|b|c>   restart it
-  sick <a|b|c>           stop that node's mock LLM       heal <a|b|c>     restart it
+  sick <a|b|c>           stop that node's mock LLM       heal <a|b|c>     restart it  (mock mode only)
   tail <a|b|c|mock_a..> [n]   last n log lines (default 20)
   open                   dashboard URLs
-  help | quit"""
+  help | quit
+(run pytest in a separate terminal, not at this prompt)"""
 
 
 def _get_json(cluster: SimCluster, path: str) -> tuple[str, Any] | None:
@@ -306,8 +362,28 @@ def cmd_tail(cluster: SimCluster, name: str, n: int = 20) -> None:
 
 
 def main() -> None:
-    cluster = SimCluster()
-    print(f"starting 3 mock LLMs + 3 nodes; logs in {cluster.log_dir}")
+    import argparse
+    ap = argparse.ArgumentParser(description="3-node SwarmMind simulator")
+    ap.add_argument("--real", nargs="?", const="http://127.0.0.1:11434", default=None, metavar="OLLAMA_URL",
+                    help="use a real Ollama for all nodes instead of mock LLMs (default URL %(const)s)")
+    ap.add_argument("--model", default="gemma4:e4b", help="model for --real (must be in `ollama list`)")
+    args = ap.parse_args()
+    if args.real:
+        try:
+            names = [m["name"] for m in httpx.get(args.real.rstrip("/") + "/api/tags", timeout=3).json()["models"]]
+        except (httpx.HTTPError, ValueError, KeyError) as e:
+            sys.exit(f"Ollama not reachable at {args.real}: {e!r}  (is `ollama serve` running?)")
+        if args.model not in names and f"{args.model}:latest" not in names:
+            sys.exit(f"model {args.model!r} not in Ollama ({', '.join(names) or 'none'}); never pulled, copy it in")
+    busy = ports_in_use(include_mocks=not args.real)
+    if busy:
+        sys.exit(f"ports already in use: {', '.join(busy)}\n"
+                 "another simulator (or sim node) is still running: `quit` it first, or kill its python processes")
+    cluster = SimCluster(real_ollama=args.real, real_model=args.model)
+    if args.real:
+        print(f"starting 3 nodes on REAL {args.model} @ {args.real} (shared GPU); logs in {cluster.log_dir}")
+    else:
+        print(f"starting 3 mock LLMs + 3 nodes (canned answer; use --real for Gemma); logs in {cluster.log_dir}")
     ok = cluster.start(wait=True, timeout=30)
     print("all nodes up" if ok else "WARNING: not every node answered /peers within 30 s "
           "(see `tail a`)")
