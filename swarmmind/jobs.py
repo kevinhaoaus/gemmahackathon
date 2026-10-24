@@ -47,6 +47,9 @@ class Job:
     final_seq: int | None = None
     nodes_used: list[str] = field(default_factory=list)
     last_token_mono: float | None = None         # local clock: when we last got a token
+    kind: str = "ask"                            # ask | plan | verify (robot cell planner)
+    system: str | None = None                    # system prompt; None = SYSTEM_PROMPT (old nodes)
+    context: str | None = None                   # extra user-turn text, e.g. the cell's object list
 
     @property
     def has_image(self) -> bool:
@@ -89,7 +92,8 @@ class Job:
                 "vision_mode": self.vision_mode, "vision_text": self.vision_text,
                 "has_image": self.has_image, "state": self.state, "node_id": self.node_id,
                 "term": self.term, "handoffs": self.handoffs, "started_ts": self.started_ts,
-                "done_ts": self.done_ts, "final_seq": self.final_seq, "nodes_used": self.nodes_used}
+                "done_ts": self.done_ts, "final_seq": self.final_seq, "nodes_used": self.nodes_used,
+                "kind": self.kind, "system": self.system, "context": self.context}
 
     def ui(self) -> dict[str, Any]:
         d = self.meta()
@@ -109,7 +113,8 @@ class Job:
                   node_id=d.get("node_id", ""), term=int(d.get("term", 0)),
                   handoffs=list(d.get("handoffs") or []), started_ts=float(d.get("started_ts") or 0),
                   done_ts=d.get("done_ts"), final_seq=d.get("final_seq"),
-                  nodes_used=list(d.get("nodes_used") or []))
+                  nodes_used=list(d.get("nodes_used") or []), kind=d.get("kind") or "ask",
+                  system=d.get("system"), context=d.get("context"))
         for t in d.get("tokens") or []:
             job.tokens[int(t["seq"])] = (t["token"], t.get("node_id", ""))
         return job
@@ -151,9 +156,16 @@ class JobManager:
                 break
 
     # ------------------------------------------------------------------ leader: new job
-    async def create(self, question: str) -> Job:
+    async def create(self, question: str, kind: str = "ask", system: str | None = None,
+                     image: bytes | None = None, context: str | None = None,
+                     job_id: str | None = None) -> Job:
+        """Start a job. kind/system/context are replicated so a successor resumes with the same
+        prompt; `image` (e.g. the annotated cell frame) replaces the raw camera frame; a given
+        `job_id` makes creation idempotent (the planner derives it from plan/step/attempt)."""
         n = self.node
-        frame = await n.vision.capture_frame()
+        if job_id and job_id in self.jobs:
+            return self.jobs[job_id]
+        frame = image if image is not None else await n.vision.capture_frame()
         image_b64 = base64.b64encode(frame).decode() if frame else None
         vision_text: str | None = None
         if frame:
@@ -169,14 +181,16 @@ class JobManager:
                 vision_text = VISION_UNAVAILABLE
         else:
             vision_mode = "none"
-        job = Job(job_id=uuid.uuid4().hex[:8], question=question, model=n.backend.model,
+        job = Job(job_id=job_id or uuid.uuid4().hex[:8], question=question, model=n.backend.model,
                   vision_mode=vision_mode, vision_text=vision_text, image_b64=image_b64,
                   node_id=n.cfg.node_id, term=n.election.term, started_ts=time.time(),
-                  nodes_used=[n.cfg.node_id])
+                  nodes_used=[n.cfg.node_id], kind=kind, system=system or SYSTEM_PROMPT,
+                  context=context)
         self._store(job)
         n.broadcast(JOB_NEW, job.full())
         n.ui_push(JOB_NEW, job.meta())
-        n.event(f"job {job.job_id} started on {n.cfg.node_id} ({job.model}, vision={vision_mode}): {question}")
+        n.event(f"{'job' if kind == 'ask' else kind + ' job'} {job.job_id} started on {n.cfg.node_id} "
+                f"({job.model}, vision={vision_mode}): {question}")
         self.streaming[job.job_id] = asyncio.create_task(self._generate(job, resume=False))
         return job
 
@@ -210,10 +224,8 @@ class JobManager:
         return RESUME_NO_VISION, None, "vision unavailable"
 
     @staticmethod
-    def _user_turn(question: str, vision_text: str | None) -> str:
-        if vision_text:
-            return f"{vision_text}\n\n{question}"
-        return question
+    def _user_turn(question: str, vision_text: str | None, context: str | None = None) -> str:
+        return "\n\n".join(p for p in (vision_text, context, question) if p)
 
     async def _generate(self, job: Job, resume: bool) -> None:
         n = self.node
@@ -228,12 +240,15 @@ class JobManager:
                 ref = job.last_token_mono or n.leader_since
                 log.info("resuming job %s at seq %d (%s); prefix=%r", job.job_id, at_seq, note, prefix[-60:])
                 budget = max(32, n.cfg.num_predict - at_seq)    # same total length as an uninterrupted answer
-                stream = n.backend.stream_continue(SYSTEM_PROMPT, self._user_turn(job.question, vision_text),
+                stream = n.backend.stream_continue(job.system or SYSTEM_PROMPT,
+                                                   self._user_turn(job.question, vision_text, job.context),
                                                    prefix, image_b64=image, max_tokens=budget)
             else:
                 at_seq = 0
                 use_image = job.image_b64 if (n.backend.supports_images and job.vision_mode == "native") else None
-                stream = n.backend.stream_chat(SYSTEM_PROMPT, self._user_turn(job.question, job.vision_text), use_image)
+                stream = n.backend.stream_chat(job.system or SYSTEM_PROMPT,
+                                               self._user_turn(job.question, job.vision_text, job.context),
+                                               use_image)
             seq = at_seq
             first = True
             async for tok in stream:
@@ -283,9 +298,13 @@ class JobManager:
         job.done_ts = time.time()
         answer = job.text()
         body = {"job_id": job.job_id, "final_seq": final_seq, "answer": answer, "term": n.election.term,
-                "nodes_used": job.nodes_used, "done_ts": job.done_ts}
+                "nodes_used": job.nodes_used, "done_ts": job.done_ts, "kind": job.kind}
         n.broadcast(JOB_DONE, body)
         n.ui_push(JOB_DONE, body)
+        if job.kind != "ask":          # plan/verify output is consumed by the planner, not uplinked
+            n.event(f"{job.kind} job {job.job_id} done: {final_seq} tokens, nodes {job.nodes_used}, "
+                    f"{len(job.handoffs)} handoff(s)")
+            return
         report = {"job_id": job.job_id, "question": job.question, "answer": answer,
                   "nodes_used": job.nodes_used, "handoffs": job.handoffs,
                   "vision": job.vision_text or job.vision_mode, "timestamp": job.done_ts}

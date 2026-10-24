@@ -20,14 +20,16 @@ from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 
+from .cell.planner import PlanBusy, PlanError, PlanManager
 from .config import NodeConfig, load_config
 from .election import Election
 from .inference import make_backend
 from .jobs import JobManager
 from .logutil import get_logger, setup_logging
-from .protocol import (EVENT, JOB_DONE, JOB_HANDOFF, JOB_NEW, JOB_TOKEN, LEADER_ONLY, REPORT_NEW,
-                       REPORT_SENT, SYNC_REQ, SYNC_RESP, TASK_ASSIGN, TASK_CANCEL, TASK_PROGRESS,
-                       TASK_RESULT, TASK_SUBMIT, TOPIC_PUB, Envelope, Heartbeat)
+from .protocol import (EVENT, JOB_DONE, JOB_HANDOFF, JOB_NEW, JOB_TOKEN, LEADER_ONLY, PLAN_NEW,
+                       PLAN_UPDATE, REPORT_NEW, REPORT_SENT, SYNC_REQ, SYNC_RESP, TASK_ASSIGN,
+                       TASK_CANCEL, TASK_PROGRESS, TASK_RESULT, TASK_SUBMIT, TOPIC_PUB, Envelope,
+                       Heartbeat)
 from .tasks import REGISTRY, TaskManager, load_capability_modules
 from .topics import TopicBus
 from .transport import HeartbeatChannel, PeerBus
@@ -49,7 +51,13 @@ class Node:
         self.jobs = JobManager(self)
         self.tasks = TaskManager(self)
         self.topics = TopicBus(cfg.node_id)
-        self.election = Election(cfg, self.jobs.has_unfinished, self._on_leader_change)
+        self.plans = PlanManager(self)
+        # robot cell seams (docs/ROBOT_CELL.md): set by the perception capability on the camera node
+        self.cell_state: dict | None = None
+        self.cell_annotated_jpeg: bytes | None = None
+        # never preempt a leader mid-answer or mid-plan (an arm may be moving)
+        self.election = Election(cfg, lambda: self.jobs.has_unfinished() or self.plans.has_active(),
+                                 self._on_leader_change)
         self.bus = PeerBus(cfg, self._on_message, self._on_link_up)
         self.hb = HeartbeatChannel(cfg, self._make_hb, self._on_hb)
         self.uplink = Uplink(cfg, self._uplink_broadcast, lambda: self.election.is_leader)
@@ -140,8 +148,26 @@ class Node:
         body = self.nodes_body()
         body.update(jobs=self.jobs.snapshot(), reports=self.uplink.all_reports()[-50:],
                     events=list(self.events), tasks=self.tasks.snapshot(),
-                    topics=list(self.topics.latest.values())[-50:])
+                    topics=list(self.topics.latest.values())[-50:], plans=self.plans.snapshot())
         return body
+
+    async def cell_frame(self, forwarded: bool = False) -> bytes | None:
+        """Newest annotated cell frame: local perception, else fetched from a camera node."""
+        if self.cell_annotated_jpeg:
+            return self.cell_annotated_jpeg
+        if forwarded:                       # already a peer's fetch: never chain further
+            return None
+        for nid, ps in self.election.alive_peers().items():
+            if "vision.cell" not in (ps.hb.capabilities or []):
+                continue
+            try:
+                r = await self.http.get(f"http://{ps.hb.ip}:{ps.hb.http_port}/cell/frame.jpg",
+                                        headers={FWD_HEADER: self.cfg.node_id}, timeout=2.0)
+                if r.status_code == 200 and r.content:
+                    return r.content
+            except httpx.HTTPError as e:
+                log.debug("cell frame from %s failed: %s", nid, e)
+        return None
 
     # ------------------------------------------------------------------ membership / election
     def _on_hb(self, hb: Heartbeat, addr: tuple) -> None:
@@ -163,8 +189,10 @@ class Node:
             self.leader_since = time.monotonic()
             self.event(f"{me} is now LEADER (term {term})")
             self.jobs.resume_unfinished()
+            self.plans.resume_all()
         elif old == me:
             self.jobs.cancel_all(f"leadership moved to {new}")
+            self.plans.stop_drivers()
             self.event(f"{me} stepped down; leader is {new} (term {term})")
         elif new is None:
             self.event(f"leader {old} lost; electing (term {term})", level="warning")
@@ -270,17 +298,22 @@ class Node:
                 self.tasks.on_result(b)
             elif t == TASK_CANCEL:
                 self.tasks.on_cancel(b)
+            elif t == PLAN_NEW:
+                self.plans.on_new(b)
+            elif t == PLAN_UPDATE:
+                self.plans.on_update(b)
             elif t == EVENT:
                 self.event(b.get("msg", ""), b.get("level", "info"), origin=b.get("node_id", env.src),
                            ts=b.get("ts"), term=b.get("term"))
             elif t == SYNC_REQ:
                 body = {"jobs": self.jobs.sync_payload(), "reports": self.uplink.all_reports(),
-                        "tasks": self.tasks.snapshot()}
+                        "tasks": self.tasks.snapshot(), "plans": self.plans.sync_payload()}
                 self.bus.send_to(env.src, Envelope(SYNC_RESP, self.cfg.node_id, self.election.term, body))
             elif t == SYNC_RESP:
                 self.jobs.merge_sync(b.get("jobs") or [])
                 self.tasks.merge_sync(b.get("tasks") or [])
-                sent = [r["job_id"] for r in b.get("reports") or [] if r.get("sent")]
+                self.plans.merge_sync(b.get("plans") or [])
+                sent =[r["job_id"] for r in b.get("reports") or [] if r.get("sent")]
                 for r in b.get("reports") or []:
                     self.uplink.add_report({k: v for k, v in r.items() if k != "sent"})
                 if sent:
@@ -319,12 +352,6 @@ class Node:
     # ------------------------------------------------------------------ lifecycle
     async def run(self) -> None:
         loaded = load_capability_modules()
-        missing = [c for c in self.cfg.capabilities if c not in REGISTRY]
-        log.info("node %s rank %d | backend %s model %s images=%s | vision %s | caps %s | handlers %s",
-                 self.cfg.node_id, self.cfg.rank, self.backend.name, self.backend.model,
-                 self.backend.supports_images, self.vision.mode, self.capabilities(), sorted(REGISTRY))
-        if missing:
-            log.warning("capabilities without handlers: %s", missing)
         self._modules = loaded
         for mod in loaded:
             if hasattr(mod, "setup"):
@@ -332,6 +359,13 @@ class Node:
                     await mod.setup(self)
                 except Exception:  # noqa: BLE001 - a broken driver must not take the node down
                     log.exception("capability module %s setup failed", mod.__name__)
+        # checked after setup: some modules (cell_arm) register handlers dynamically there
+        missing = [c for c in self.cfg.capabilities if c not in REGISTRY]
+        log.info("node %s rank %d | backend %s model %s images=%s | vision %s | caps %s | handlers %s",
+                 self.cfg.node_id, self.cfg.rank, self.backend.name, self.backend.model,
+                 self.backend.supports_images, self.vision.mode, self.capabilities(), sorted(REGISTRY))
+        if missing:
+            log.warning("capabilities without handlers: %s", missing)
         await self.hb.start()
         app = build_app(self)
         server = uvicorn.Server(uvicorn.Config(app, host=self.cfg.bind_host, port=self.cfg.http_port,
@@ -440,6 +474,40 @@ def build_app(node: Node) -> FastAPI:
     @app.get("/tasks")
     async def tasks() -> dict:
         return {"tasks": node.tasks.snapshot()}
+
+    # ---- robot cell planner (docs/ROBOT_CELL.md)
+    @app.post("/cell/goal")
+    async def cell_goal(request: Request) -> Response:
+        payload = await request.json()
+        goal = str(payload.get("goal", "")).strip()
+        if not goal:
+            return JSONResponse({"error": "goal is required"}, status_code=400)
+        if node.election.is_leader:
+            try:
+                plan = await node.plans.submit_goal(goal)
+            except PlanBusy as e:
+                return JSONResponse({"error": str(e), "plan_id": e.plan_id}, status_code=409)
+            except PlanError as e:
+                return JSONResponse({"error": str(e)}, status_code=503)
+            return JSONResponse({"plan_id": plan.plan_id, "leader_id": node.cfg.node_id})
+        return await node.forward_to_leader("/cell/goal", {"goal": goal}, request)
+
+    @app.get("/cell/plans")
+    async def cell_plans() -> dict:
+        return {"plans": node.plans.snapshot()}
+
+    @app.post("/cell/plans/{plan_id}/cancel")
+    async def cell_cancel(plan_id: str, request: Request) -> Response:
+        if node.election.is_leader:
+            return JSONResponse({"cancelled": node.plans.cancel(plan_id)})
+        return await node.forward_to_leader(f"/cell/plans/{plan_id}/cancel", {}, request)
+
+    @app.get("/cell/frame.jpg")
+    async def cell_frame(request: Request) -> Response:
+        jpeg = await node.cell_frame(forwarded=bool(request.headers.get(FWD_HEADER)))
+        if jpeg is None:
+            return Response(status_code=404)
+        return Response(jpeg, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
 
     @app.post("/pub/{topic}")
     async def pub(topic: str, request: Request) -> dict:

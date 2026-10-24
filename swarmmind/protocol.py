@@ -23,7 +23,7 @@ PROTOCOL_VERSION = 1
 
 # ---- message types (namespaced "<domain>.<verb>"; new domains = new use cases, e.g. "arm.*")
 HEARTBEAT = "hb"                  # UDP only
-SYNC_REQ = "sync.req"             # ask a peer for its full state (jobs, reports, tasks)
+SYNC_REQ = "sync.req"             # ask a peer for its full state (jobs, reports, tasks, plans)
 SYNC_RESP = "sync.resp"
 JOB_NEW = "job.new"               # leader -> all: question, vision context, model, image
 JOB_TOKEN = "job.token"           # leader -> all: {job_id, seq, token, node_id, term}
@@ -37,11 +37,13 @@ TASK_PROGRESS = "task.progress"   # assignee -> all
 TASK_RESULT = "task.result"       # assignee -> all
 TASK_CANCEL = "task.cancel"       # leader -> all: stop a task now (e.g. arm e-stop)
 TOPIC_PUB = "topic.pub"           # any -> all: latest-value stream sample (IMU, telemetry, teleop)
+PLAN_NEW = "plan.new"             # leader -> all: robot-cell plan created (full plan state)
+PLAN_UPDATE = "plan.update"       # leader -> all: plan state changed (full plan state, newer rev)
 EVENT = "event"                   # free-form log line for dashboards
 
 # message types that are only valid from the current leader at the current term
 LEADER_ONLY = {JOB_NEW, JOB_TOKEN, JOB_HANDOFF, JOB_DONE, REPORT_NEW, REPORT_SENT, TASK_ASSIGN,
-               TASK_CANCEL}
+               TASK_CANCEL, PLAN_NEW, PLAN_UPDATE}
 
 _counter = itertools.count(1)
 
@@ -109,6 +111,27 @@ class Heartbeat:
         return cls(**{k: v for k, v in obj.items() if k in fields})
 
 
-SYSTEM_PROMPT = ("You are a field assistant for wildfire and search-and-rescue teams. "
-                 "Describe the scene briefly, flag hazards, and give one concrete next action. "
-                 "You support human decisions; you do not replace them.")
+# Default system prompt for operator questions (/ask) at the robot cell.
+SYSTEM_PROMPT = ("You are the planning assistant for a robotic assembly cell where a large robot arm "
+                 "assembles an SO-101 arm from parts located by AprilTags. Describe what you see in the "
+                 "cell, flag hazards to people or equipment, and give one concrete next step. "
+                 "You support the human operator; you do not replace their decisions.")
+
+# Planner job (kind "plan"): Gemma decides WHAT, geometry decides WHERE (docs/ROBOT_CELL.md).
+PLAN_SYSTEM_PROMPT = (
+    "You are the step planner for a robotic assembly cell. Turn the operator's goal into a plan "
+    "for the robot arm. Output ONLY one JSON object, with no prose and no code fences, in exactly "
+    "this schema: "
+    '{"steps": [{"op": "pick", "object": "<name>"}, {"op": "place", "target": "<name>"}, '
+    '{"op": "verify", "check": "<what to confirm in the camera image>"}, {"op": "home"}]}. '
+    "Rules: use only the ops pick, place, verify and home. Use only the object names from the "
+    "list of available objects, spelled exactly. Never output coordinates, positions, angles or "
+    "any numbers: the cell computes all geometry itself. Pair every pick with a place: after a "
+    "pick, the next pick or place op must be a place. Add a verify step after each place. "
+    "Use at most 12 steps.")
+
+# Verify job (kind "verify"): a yes/no check of one condition from the camera image.
+VERIFY_SYSTEM_PROMPT = (
+    "You are the visual inspector for a robotic assembly cell. Look at the camera image and "
+    "judge only the given check. Answer ONLY with one JSON object, no prose and no code fences: "
+    '{"ok": true or false, "reason": "<one short sentence>"}.')

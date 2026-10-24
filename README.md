@@ -2,7 +2,7 @@
 
 Offline swarm of heterogeneous machines on one LAN that runs Gemma 4 and drives robots. Any node can die mid-answer and another finishes the same sentence. No cloud, no internet.
 
-> **Pivot in progress: "robot building robot."** The demo is moving from wildfire Q&A to an assembly cell. A large arm (model TBD, pluggable driver) places a servo into an SO-101, located by a Logitech Brio webcam and AprilTags. Gemma plans the steps and checks the result on every node, and the cell keeps building if a computer dies. The swarm layer is unchanged. Coming: a robot-cell system prompt, AprilTag perception (pixels → arm coordinates), a planner (Gemma JSON → checked arm tasks) and a large-arm driver. See [docs/ROBOT_CELL.md](docs/ROBOT_CELL.md).
+> **Now: "robot building robot."** The demo is moving from wildfire Q&A to an assembly cell. A large arm (model TBD, pluggable driver) places a servo into an SO-101, located by a Logitech Brio webcam and AprilTags. Gemma plans the steps and checks the result on every node, and the cell keeps building if a computer dies. The swarm layer is unchanged. Built and tested in the simulator (real Gemma plans and verifies): a robot-cell system prompt, AprilTag perception (pixels → arm coordinates), a planner (Gemma JSON → checked arm tasks, resumes on failover), pluggable large-arm drivers (mock/Kinova/xArm/UR/SO-101) and a dashboard Cell panel. See [docs/ROBOT_CELL.md](docs/ROBOT_CELL.md).
 
 ## Nodes
 

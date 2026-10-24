@@ -14,6 +14,17 @@ static_peers: ["127.0.0.1:8701:50001", "127.0.0.1:8702:50002"]
 udp_port: 50003
 broadcast_addr: ""
 data_dir: data/sim
-num_predict: 120
+num_predict: 320    # room for a full JSON plan (up to 12 steps)
 # generic task-bus handlers this node offers (swarmmind/capabilities/builtin.py)
 capabilities: ["echo"]
+capability_config:
+  # robot cell layout (docs/ROBOT_CELL.md): identical on every node, so any leader can plan
+  cell:
+    tag_size_m: 0.04                   # printed black-square edge length
+    table_tags: {0: [0.0, 0.0], 1: [0.60, 0.0], 2: [0.60, 0.40], 3: [0.0, 0.40]}   # id: [x, y] metres, table frame
+    objects:                           # everything Gemma may name; each anchored to a tag
+      servo_1:      {tag: 10, kind: part,    offset: [0.0, 0.0, 0.015], grasp_yaw: 0}
+      so101_slot_1: {tag: 20, kind: slot,    offset: [0.07, 0.0, 0.03], insert_depth: 0.02}   # slot point 7 cm from its tag: a seated part must not cover the tag
+      tray_a:       {tag: 11, kind: fixture, offset: [0.0, 0.0, 0.0]}
+    arms:                              # table frame -> arm base frame (x, y, yaw_deg, z_table)
+      arm.big: {base: [0.30, -0.25, 90.0, 0.0], approach_h: 0.08, speed: 0.05}

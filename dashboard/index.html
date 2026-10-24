@@ -156,18 +156,124 @@
   #tasks .tid { color: var(--muted); font-size: .8rem; }
   .empty { color: var(--muted); font-style: italic; padding: .3rem 0; }
   .bottom { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: .8rem; }
+  #events li.k-plan .m { color: #b8f7c9; font-weight: 700; }
+
+  /* ---- robot cell ---- */
+  #cellpanel { border: 2px solid #2f5d6b; box-shadow: 0 0 26px rgba(62,224,255,.08); }
+  #cellpanel > h2 { font-size: 1.15rem; color: var(--accent); }
+  #goalform { display: flex; flex-wrap: wrap; gap: .6rem; }
+  #goal { flex: 1 1 18rem; min-width: 0; font-size: 1.5rem; padding: .55rem .8rem; background: #05080d; border: 2px solid var(--line); border-radius: 10px; }
+  #goal:focus { outline: none; border-color: var(--ok); }
+  #buildbtn { font-size: 1.5rem; font-weight: 900; padding: .55rem 1.6rem; border-radius: 10px; border: 0; background: var(--ok); color: #000; cursor: pointer; letter-spacing: .03em; }
+  #buildbtn:disabled, #cancelbtn:disabled { opacity: .45; cursor: not-allowed; }
+  .presetbtn { font-size: 1.05rem; font-weight: 700; padding: .45rem .9rem; border-radius: 10px; border: 2px solid #3d6b4f; background: #0f2a1b; color: #b8f7c9; cursor: pointer; }
+  #cellmsg { margin-top: .4rem; font-size: 1rem; min-height: 1.3em; }
+  #cellmsg.err { color: var(--bad); font-weight: 700; }
+  #cellmsg.ok { color: var(--ok); }
+  .cellgrid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: .8rem; margin-top: .6rem; align-items: start; }
+  .subpanel { background: var(--panel2); border: 1px solid var(--line); border-radius: var(--radius); padding: .7rem .9rem; min-width: 0; }
+  .subpanel h3 { margin: 0 0 .45rem; font-size: .9rem; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+  .subpanel h3 .count { margin-left: auto; color: var(--text); letter-spacing: 0; font-weight: 600; text-transform: none; }
+
+  #planbox.p-running { border-color: var(--pill); }
+  #planbox.p-planning, #planbox.p-validating { border-color: var(--accent); }
+  #planbox.p-done { border-color: var(--ok); }
+  #planbox.p-failed { border-color: var(--bad); }
+  .plan-head { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .6rem; }
+  .plan-head .grow { flex: 1; }
+  .ps { font-size: 1.25rem; padding: .15rem .8rem; }
+  .ps-planning { background: var(--accent); color: #000; animation: pulse 1.2s ease-in-out infinite; }
+  .ps-validating { background: #8f7cff; color: #000; }
+  .ps-running { background: var(--pill); color: #fff; border-color: #8fc1ff; }
+  .ps-done { background: var(--ok); color: #000; }
+  .ps-failed { background: var(--bad); color: #fff; }
+  .ps-cancelled { background: #4a5568; color: #fff; }
+  .ps-idle { background: #333c4a; color: #fff; }
+  .plan-lead { font-size: 1.2rem; font-weight: 700; }
+  .plan-lead .badge { font-size: 1rem; }
+  .b-down { background: var(--bad); color: #fff; animation: pulse 1s ease-in-out infinite; }
+  #cancelbtn { font-size: 1.1rem; font-weight: 800; padding: .35rem 1rem; border-radius: 10px; border: 2px solid var(--bad); background: #3a1111; color: #ffd0d0; cursor: pointer; }
+  #plangoal { font-size: clamp(1.5rem, 2.3vw, 2.5rem); font-weight: 800; color: #ffe9a8; margin: .35rem 0 .2rem; word-break: break-word; }
+  #planid { color: var(--muted); font-size: .85rem; }
+  #planhand { display: flex; flex-wrap: wrap; gap: .4rem; margin: .3rem 0; font-size: 1.6rem; }
+  #planhand:empty { display: none; }
+  #plantokwrap { display: none; margin: .5rem 0; padding: .5rem .7rem; border: 2px dashed var(--accent); border-radius: 10px; background: #061017; }
+  #plantokwrap.on { display: block; }
+  #plantokwrap .lbl { font-size: .9rem; color: var(--accent); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+  #plantokens { font-size: clamp(18px, 1.6vw, 26px); line-height: 1.4; white-space: pre-wrap; word-break: break-word; max-height: 14em; overflow-y: auto; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+  #plantokens .placeholder { color: var(--muted); font-style: italic; }
+  #steps { list-style: none; margin: .5rem 0 0; padding: 0; display: grid; gap: .45rem; }
+  #steps li.step { display: grid; grid-template-columns: 2.3em minmax(0, 1fr); gap: .1rem .7rem; align-items: center; padding: .5rem .6rem; border-radius: 10px; border: 2px solid #233046; background: #0b1119; }
+  #steps .ic { grid-row: span 2; font-size: clamp(1.8rem, 2.6vw, 2.8rem); font-weight: 900; text-align: center; line-height: 1; }
+  #steps .lbl { font-size: clamp(1.35rem, 2vw, 2.2rem); font-weight: 800; word-break: break-word; }
+  #steps .op { color: var(--accent); text-transform: uppercase; margin-right: .35em; }
+  #steps .sub { font-size: 1.05rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: .2rem 1rem; }
+  #steps .sub b { color: var(--text); }
+  #steps .res { font-size: 1.2rem; font-weight: 700; grid-column: 2; }
+  #steps .res.ok { color: var(--ok); } #steps .res.bad { color: var(--bad); }
+  #steps li.s-pending .ic { color: #5b6b80; }
+  #steps li.s-pending .lbl { color: #c3cddb; }
+  #steps li.s-running { border-color: var(--pill); background: #0d1a33; box-shadow: 0 0 0 2px rgba(31,111,235,.45), 0 0 18px rgba(31,111,235,.35); }
+  #steps li.s-running .ic { color: #8fc1ff; animation: pulse 1s ease-in-out infinite; }
+  #steps li.s-done { border-color: #1f5f3c; }
+  #steps li.s-done .ic { color: var(--ok); }
+  #steps li.s-failed { border-color: var(--bad); background: #220c0f; }
+  #steps li.s-failed .ic { color: var(--bad); }
+  #steps li.s-skipped .ic { color: var(--muted); }
+  #steps li.handmark { text-align: center; padding: .1rem 0; }
+  #steps li.handmark .handoff { font-size: 1.05rem; }
+  #steps li.empty { font-size: 1.2rem; }
+
+  #cellframebox { position: relative; aspect-ratio: 4 / 3; width: min(100%, 50vh); margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; display: grid; place-items: center; }
+  #cellframe { width: 100%; height: 100%; object-fit: contain; display: none; }
+  #cellnoframe { color: var(--muted); font-size: 1.3rem; font-weight: 700; text-align: center; padding: 1rem; }
+  #cellframecap { font-size: .9rem; color: var(--muted); margin-top: .3rem; }
+  .calib { font-size: 1.1rem; }
+  .b-cal { background: var(--ok); color: #000; }
+  .b-nocal { background: var(--bad); color: #fff; }
+  .b-stale { background: var(--warn); color: #000; }
+  .tblwrap { overflow-x: auto; }
+  #objects { width: 100%; border-collapse: collapse; font-size: 1.15rem; }
+  #objects th { text-align: left; font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: .2rem .4rem; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  #objects td { padding: .3rem .4rem; border-bottom: 1px solid #1b2433; white-space: nowrap; }
+  #objects td.n, #objects th.n { text-align: right; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+  #objects td.nm { font-weight: 800; }
+  #objects td.vis { font-size: 1.35rem; font-weight: 900; text-align: center; }
+  #objects tr.v-yes td.vis { color: var(--ok); }
+  #objects tr.v-no td { color: #6f7d91; }
+  #objects tr.v-no td.vis { color: var(--bad); }
+  #objects .kind { font-size: .85rem; color: var(--muted); }
+  #arms { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: .6rem; }
+  .arm { background: #0b1119; border: 2px solid #233046; border-radius: 10px; padding: .55rem .7rem; min-width: 0; }
+  .arm.estop { border-color: var(--bad); box-shadow: 0 0 0 2px var(--bad), 0 0 20px rgba(255,77,77,.4); }
+  .arm.stale { opacity: .55; }
+  .arm .top { display: flex; align-items: baseline; flex-wrap: wrap; gap: .4rem; }
+  .arm .aname { font-size: 1.4rem; font-weight: 900; }
+  .arm .badges { display: flex; flex-wrap: wrap; gap: .3rem; margin: .3rem 0; }
+  .b-estop { background: var(--bad); color: #fff; font-size: 1rem; animation: pulse 1s ease-in-out infinite; }
+  .b-estopok { background: #0f3d26; color: var(--ok); border-color: var(--ok); }
+  .b-idle { background: #333c4a; color: #fff; }
+  .pose { display: grid; grid-template-columns: repeat(auto-fill, minmax(4.6rem, 1fr)); gap: .3rem; }
+  .pose div { background: #121a26; border-radius: 8px; padding: .2rem .4rem; }
+  .pose .k { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .pose .v { font-size: 1.4rem; font-weight: 800; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+  .pose .u { font-size: .75rem; color: var(--muted); margin-left: .15em; }
+  .arm .foot { font-size: .85rem; color: var(--muted); margin-top: .3rem; word-break: break-word; }
 
   @keyframes blink { 50% { opacity: 0; } }
   @keyframes pulse { 50% { filter: brightness(1.35); } }
 
   @media (max-width: 1000px) {
-    .cols, .bottom { grid-template-columns: minmax(0, 1fr); }
+    .cols, .bottom, .cellgrid { grid-template-columns: minmax(0, 1fr); }
     #answer { max-height: none; }
   }
   @media (max-width: 560px) {
     html { font-size: 15px; }
     main { padding: .5rem; gap: .5rem; }
     #askform { flex-direction: column; }
+    #goalform > * { flex: 1 1 100%; }
+    #steps li.step { grid-template-columns: 1.9em minmax(0, 1fr); padding: .4rem .45rem; }
+    #objects { font-size: 1rem; }
     .hdr-right { margin-left: 0; }
     #events li { grid-template-columns: 4.6em 1fr; }
     #events .n { display: none; }
@@ -190,6 +296,46 @@
   <section class="panel" aria-label="nodes">
     <h2>Swarm nodes <span class="count" id="nodecount"></span></h2>
     <div id="nodes"><div class="empty">waiting for node list…</div></div>
+  </section>
+
+  <section class="panel" id="cellpanel" aria-label="robot cell">
+    <h2>Robot cell · robot building robot <span class="count" id="cellsum"></span></h2>
+    <form id="goalform" autocomplete="off">
+      <input id="goal" type="text" placeholder="Assembly goal… (Enter)" aria-label="assembly goal">
+      <button id="buildbtn" type="submit">Build</button>
+      <button id="presetbtn" class="presetbtn" type="button">Insert servo into SO-101</button>
+    </form>
+    <div id="cellmsg"></div>
+    <div class="cellgrid">
+      <section class="subpanel" id="planbox">
+        <div class="plan-head">
+          <span id="planstate" class="badge ps ps-idle">NO PLAN</span>
+          <span id="planlead" class="plan-lead"></span>
+          <span class="grow"></span>
+          <button id="cancelbtn" type="button" disabled>Cancel</button>
+        </div>
+        <div id="plangoal">No plan yet: type a goal and press Build</div>
+        <div id="planid" class="mono"></div>
+        <div id="planhand"></div>
+        <div id="plantokwrap"><div class="lbl">Gemma is planning… <span id="plantokjob" class="mono"></span></div><div id="plantokens"></div></div>
+        <ol id="steps"></ol>
+      </section>
+      <div class="stack">
+        <section class="subpanel">
+          <h3>Cell camera (annotated) <span class="count" id="cellframenode"></span></h3>
+          <div id="cellframebox"><img id="cellframe" alt="annotated cell camera frame"><div id="cellnoframe">no cell frame yet</div></div>
+          <div id="cellframecap"></div>
+        </section>
+        <section class="subpanel">
+          <h3>Objects <span id="calib" class="calib"></span><span class="count" id="objcount"></span></h3>
+          <div class="tblwrap"><table id="objects"><thead><tr><th>name</th><th>vis</th><th class="n">x mm</th><th class="n">y mm</th><th class="n">z mm</th><th class="n">yaw°</th></tr></thead><tbody></tbody></table></div>
+        </section>
+        <section class="subpanel">
+          <h3>Arms <span class="count" id="armcount"></span></h3>
+          <div id="arms"><div class="empty">no arm telemetry</div></div>
+        </section>
+      </div>
+    </div>
   </section>
 
   <div class="cols">
@@ -284,7 +430,10 @@
     reports: {}, sentIds: {},
     tasks: {},
     events: [], eventKeys: {},
-    hadLeader: null
+    hadLeader: null,
+    plans: {}, currentPlanId: null, planTrack: {},   // plan_id -> plan; plan_id -> {leader, state, handovers}
+    tws: null, twsTimer: null,                       // /ws/topics socket (follows the main connection)
+    cell: null, arms: {}, topicSeq: {}               // latest cell.state / arm.*.state samples
   };
 
   // ---------------------------------------------------------------- peers
@@ -452,6 +601,9 @@
       // the server sends ui.snapshot on connect; if it doesn't arrive, pull /state
       setTimeout(function () { if (S.ws === ws && !S.gotSnapshot) fetchState(host); }, 700);
       frameTick();
+      openTopics(host);
+      primeTopics(host);
+      cellFrameTick();
     };
     ws.onmessage = function (ev) {
       if (S.ws !== ws) return;
@@ -468,6 +620,7 @@
     if (S.ws !== ws) return;
     var host = S.host, wasOpen = S.wsOpen;
     S.ws = null; S.wsOpen = false;
+    closeTopics();
     ws.onopen = ws.onmessage = ws.onclose = ws.onerror = null;
     try { ws.close(); } catch (e) { /* ignore */ }
     markFailed(host);
@@ -509,6 +662,7 @@
     else if (t === 'report.new') onReport(b, true);
     else if (t === 'report.sent') onReportSent(b);
     else if (t === 'event') addEvent(b);
+    else if (t === 'plan.new' || t === 'plan.update') onPlan(b, true, t === 'plan.new');
     else if (t.indexOf('task.') === 0) onTask(t, b);
   }
 
@@ -520,6 +674,11 @@
     (Array.isArray(b.reports) ? b.reports : []).forEach(function (r) { onReport(r, false); });
     (Array.isArray(b.events) ? b.events : []).forEach(addEvent);
     (Array.isArray(b.tasks) ? b.tasks : []).forEach(function (tk) { onTask('task.snapshot', tk); });
+    var pl = b.plans;
+    if (pl && !Array.isArray(pl) && typeof pl === 'object') pl = Object.keys(pl).map(function (k) { return pl[k]; });
+    (Array.isArray(pl) ? pl : []).forEach(function (p) { onPlan(p, false, false); });
+    if (Array.isArray(pl) && pl.length) pickCurrentPlan();
+    render.plan = true;
     render.answer = render.reports = render.tasks = render.events = true;
     schedule();
   }
@@ -579,7 +738,7 @@
     }
     return j;
   }
-  var META = ['question', 'model', 'vision_mode', 'vision_text', 'has_image', 'state', 'node_id', 'term', 'started_ts', 'done_ts', 'answer', 'final_seq'];
+  var META = ['question', 'model', 'vision_mode', 'vision_text', 'has_image', 'state', 'node_id', 'term', 'started_ts', 'done_ts', 'answer', 'final_seq', 'kind'];
   function mergeMeta(j, b) {
     META.forEach(function (k) {
       if (b[k] !== undefined && b[k] !== null && b[k] !== '') {
@@ -588,6 +747,12 @@
       }
     });
   }
+  // Plan/verify jobs (planner) belong to the cell panel, never the main answer panel.
+  function isAskJob(j) {
+    if (!j) return false;
+    if (j.kind && j.kind !== 'ask') return false;
+    return !/-(p|v\d+-a)\d+$/.test(String(j.job_id || ''));   // planner ids: <plan>-p<n>, <plan>-v<i>-a<n>
+  }
   function onJobNew(b, live) {
     if (!b || !b.job_id) return;
     var isNew = !S.jobs[b.job_id];
@@ -595,11 +760,12 @@
     mergeMeta(j, b);
     if (Array.isArray(b.handoffs)) b.handoffs.forEach(function (h) { addHandoff(j, h); });
     if (Array.isArray(b.tokens)) b.tokens.forEach(function (tk) { addToken(j, tk, true); });
-    if (live) {
+    if (live && isAskJob(j)) {
       S.currentJobId = j.job_id;
       if (isNew) addLocalEvent('job', 'info', 'job ' + shortId(j.job_id) + ': "' + clip(j.question, 60) + '" → ' + (j.node_id || '?') + ' (' + (j.model || '?') + ')', j.node_id);
     }
     render.answer = true; schedule();
+    if (isPlanJob(j.job_id)) render.plan = true;
   }
   function mergeSnapshotJob(b) {
     if (!b || !b.job_id) return;
@@ -625,11 +791,12 @@
     if (!b || !b.job_id) return;
     var known = !!S.jobs[b.job_id];
     var j = ensureJob(b.job_id);
-    if (!known && (!S.currentJobId || (S.jobs[S.currentJobId] && S.jobs[S.currentJobId].state === 'done'))) S.currentJobId = j.job_id;
+    if (!known && isAskJob(j) && (!S.currentJobId || (S.jobs[S.currentJobId] && S.jobs[S.currentJobId].state === 'done'))) S.currentJobId = j.job_id;
     if (!j.node_id && b.node_id) j.node_id = b.node_id;
     if (addToken(j, b, false)) {
       if (b.node_id) j.node_id = b.node_id;
       if (j.job_id === S.currentJobId) { render.answer = true; schedule(); }
+      if (isPlanJob(j.job_id)) { render.plan = true; schedule(); }
     }
   }
   function addHandoff(j, h) {
@@ -651,7 +818,8 @@
       if (b.to_node) j.node_id = b.to_node;
       if (live) addLocalEvent('handoff', 'warn', 'job ' + shortId(j.job_id) + ' handed ' + (b.from_node || '?') + ' ⟶ ' + (b.to_node || '?') +
         ' at token ' + b.at_seq + (b.gap_ms != null ? ' (gap ' + Math.round(b.gap_ms) + ' ms)' : '') + (b.vision_note ? ' — ' + b.vision_note : ''), b.to_node);
-      if (j.job_id === S.currentJobId || !S.currentJobId) { S.currentJobId = j.job_id; render.answer = true; schedule(); }
+      if (j.job_id === S.currentJobId || (!S.currentJobId && isAskJob(j))) { S.currentJobId = j.job_id; render.answer = true; schedule(); }
+      if (isPlanJob(j.job_id)) { render.plan = true; schedule(); }
     }
   }
   function onDone(b, live) {
@@ -664,11 +832,13 @@
     j.done_ts = b.done_ts || (now() / 1000);
     if (live && was !== 'done') addLocalEvent('job', 'info', 'job ' + shortId(j.job_id) + ' done (' + Object.keys(j.tokens).length + ' tokens, ' + j.handoffs.length + ' handoff' + (j.handoffs.length === 1 ? '' : 's') + ')', j.node_id);
     if (j.job_id === S.currentJobId) { render.answer = true; schedule(); }
+    if (isPlanJob(j.job_id)) { render.plan = true; schedule(); }
   }
   function pickCurrentJob() {
     var best = null;
     Object.keys(S.jobs).forEach(function (id) {
       var j = S.jobs[id];
+      if (!isAskJob(j)) return;
       var t = j.started_ts ? tsMs(j.started_ts) : j.firstSeen;
       if (!best || t > best.t) best = { id: id, t: t };
     });
@@ -726,7 +896,7 @@
   function clip(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 
   // ---------------------------------------------------------------- rendering
-  var render = { nodes: true, banner: true, header: true, answer: true, events: true, reports: true, tasks: true };
+  var render = { nodes: true, banner: true, header: true, answer: true, events: true, reports: true, tasks: true, plan: true, cell: true };
   var scheduled = false;
   function schedule() {
     if (scheduled) return;
@@ -742,7 +912,9 @@
     if (render.answer) { render.answer = false; renderAnswer(); }
     if (render.events) { render.events = false; renderEvents(); }
     if (render.reports) { render.reports = false; renderReports(); }
-    if (render.tasks) { render.tasks = false; renderTasks(); }
+    if (render.tasks) { render.tasks = false; renderTasks(); render.plan = true; }   // assignees live on tasks
+    if (render.plan) { render.plan = false; renderPlan(); }
+    if (render.cell) { render.cell = false; renderCellState(); }
   }
 
   function nodeList() {
@@ -836,7 +1008,11 @@
     m('vision', (j.vision_mode ? j.vision_mode + ': ' : '') + (j.vision_text ? j.vision_text : (j.has_image ? 'native image' : 'none')));
     if (j.term !== null && j.term !== undefined) m('term', j.term);
     if (j.handoffs.length) m('handoffs', j.handoffs.length);
+    fillJob(ans, j, done);
+  }
 
+  // job text with handoff markers, shared by the answer panel and the plan panel's planning stream
+  function fillJob(ans, j, done) {
     var nearBottom = ans.scrollHeight - ans.scrollTop - ans.clientHeight < 60;
     var frag = document.createDocumentFragment();
     var seqs = Object.keys(j.tokens).map(Number).sort(function (a, b) { return a - b; });
@@ -997,6 +1173,460 @@
     img.src = url;
   }
   setInterval(frameTick, FRAME_EVERY_MS);
+
+  // ================================================================ robot cell
+  var TERMINAL = { done: 1, failed: 1, cancelled: 1, canceled: 1 };
+  var TOPIC_SUB = 'cell.,arm.';
+  var TOPIC_FPS_MS = 100;          // render topic data at most 10 fps
+  var CELL_FRAME_EVERY_MS = 1000;
+  var CELL_STALE_MS = 3000;
+  var planOrder = 0;
+
+  function planState(p) { return String((p && p.state) || 'planning').toLowerCase(); }
+  function planKey(p) { var c = num(p.created_ts, null); return c !== null ? tsMs(c) : p._first; }
+  function planUpd(p) { var u = num(p.updated_ts, null); return u !== null ? u : num(p.ts, null); }
+  function isPlanJob(id) {
+    var p = S.plans[S.currentPlanId];
+    return !!(p && id && p.job_id === id);
+  }
+
+  // ---------------------------------------------------------------- plans
+  function onPlan(b, live, isNewMsg) {
+    if (!b || !b.plan_id) return;
+    var id = b.plan_id, prev = S.plans[id];
+    if (prev && planUpd(b) !== null && planUpd(prev) !== null && planUpd(b) < planUpd(prev)) return;   // older copy
+    var p = Object.assign({}, prev || {}, b);
+    if (!Array.isArray(p.steps)) p.steps = [];
+    if (prev && TERMINAL[planState(prev)] && !TERMINAL[planState(b)]) p.state = prev.state;               // never un-finish
+    p._first = prev ? prev._first : now() + (planOrder++) / 1000;
+    S.plans[id] = p;
+    trackLeader(p, live);
+    if (live && (!prev || planState(prev) !== planState(p))) {
+      var st = planState(p);
+      addLocalEvent('plan', st === 'failed' ? 'error' : (st === 'cancelled' ? 'warn' : 'info'),
+        'plan ' + shortId(id) + ' ' + st.toUpperCase() + (prev ? '' : ': "' + clip(p.goal, 60) + '"') + (p.leader ? ' (leader ' + p.leader + ')' : ''), p.leader);
+    }
+    if (live && prev && num(prev.step, -1) !== num(p.step, -1) && planState(p) === 'running' && p.steps[p.step]) {
+      addLocalEvent('plan', 'info', 'plan ' + shortId(id) + ' step ' + (p.step + 1) + '/' + p.steps.length + ': ' + stepLabel(p.steps[p.step]).join(' '), p.leader);
+    }
+    var cur = S.plans[S.currentPlanId];
+    if ((live && isNewMsg) || !cur || (cur !== p && planKey(p) > planKey(cur))) S.currentPlanId = id;
+    render.plan = true; schedule();
+  }
+  function pickCurrentPlan() {
+    var best = null;
+    Object.keys(S.plans).forEach(function (k) { var p = S.plans[k]; if (!best || planKey(p) > planKey(best)) best = p; });
+    if (best) S.currentPlanId = best.plan_id;
+  }
+  // remember each plan's leader so a mid-run change shows as a "handed over" marker
+  function trackLeader(p, live) {
+    var tr = S.planTrack[p.plan_id];
+    if (!tr) tr = S.planTrack[p.plan_id] = { leader: null, state: null, handovers: [] };
+    var L = p.leader || null;
+    if (L && tr.leader && L !== tr.leader && tr.state && !TERMINAL[tr.state]) {
+      var h = { from: tr.leader, to: L, at_step: num(p.step, null), ms: now() };
+      tr.handovers.push(h);
+      addLocalEvent('handoff', 'warn', 'plan ' + shortId(p.plan_id) + ' handed over ' + h.from + ' ⟶ ' + h.to +
+        (h.at_step !== null ? ' at step ' + (h.at_step + 1) : ''), L);
+    }
+    if (L) tr.leader = L;
+    tr.state = planState(p);
+  }
+
+  function stepLabel(s) {
+    var op = String((s && s.op) || '?');
+    var what = s ? (s.object || s.target || s.check || s.name || '') : '';
+    return [op, (op === 'place' && s.target ? '→ ' : '') + what];
+  }
+  function stepClass(p, s, i) {
+    var st = s && s.state ? String(s.state).toLowerCase() : '';
+    if (!st) {
+      var cur = num(p.step, -1), ps = planState(p);
+      if (ps === 'done' || i < cur) st = 'done';
+      else if (i === cur && ps === 'running') st = 'running';
+      else st = 'pending';
+    }
+    if (/^(done|ok|success|succeeded|complete|completed|passed)$/.test(st)) return ['done', '✓', st];
+    if (/^(running|active|assigned|submitted|in_progress|executing|verifying|started)$/.test(st)) return ['running', '▶', st];
+    if (/fail|error|timeout|rejected/.test(st)) return ['failed', '✗', st];
+    if (/cancel|skip|abort/.test(st)) return ['skipped', '–', st];
+    return ['pending', '○', st];
+  }
+  // result: string | bool | {ok|passed|success|seated|value, reason|detail|answer|error|message}
+  function resultText(r) {
+    if (r === null || r === undefined || r === '') return null;
+    if (typeof r === 'boolean') return { ok: r, text: r ? 'yes' : 'no' };
+    if (typeof r !== 'object') return { ok: null, text: String(r) };
+    var ok = null;
+    ['ok', 'passed', 'pass', 'success', 'seated', 'result', 'value'].some(function (k) {
+      if (typeof r[k] === 'boolean') { ok = r[k]; return true; } return false;
+    });
+    if (ok === null && typeof r.verdict === 'string') ok = /^(yes|pass|ok|true)/i.test(r.verdict);
+    var why = r.reason || r.detail || r.answer || r.error || r.message || r.verdict || '';
+    if (ok === null && !why) why = JSON.stringify(r);
+    return { ok: ok, text: (ok === null ? '' : (ok ? 'yes' : 'no')) + (why ? (ok === null ? '' : ' · ') + why : '') };
+  }
+
+  function renderPlan() {
+    var p = S.plans[S.currentPlanId];
+    var box = $('planbox'), badge = $('planstate'), ul = $('steps');
+    var nplans = Object.keys(S.plans).length;
+    $('cellsum').textContent = nplans ? nplans + ' plan' + (nplans === 1 ? '' : 's') : '';
+    if (!p) {
+      box.className = 'subpanel'; badge.className = 'badge ps ps-idle'; badge.textContent = 'NO PLAN';
+      $('cancelbtn').disabled = true;
+      ul.textContent = ''; $('plantokwrap').className = '';
+      return;
+    }
+    var st = planState(p);
+    box.className = 'subpanel p-' + st;
+    badge.className = 'badge ps ps-' + (st === 'canceled' ? 'cancelled' : st);
+    var cur = num(p.step, -1);
+    badge.textContent = st.toUpperCase() + (st === 'running' && p.steps.length && cur >= 0 ? ' · step ' + (cur + 1) + '/' + p.steps.length : '');
+    $('cancelbtn').disabled = !!TERMINAL[st] || cancelling;
+    $('plangoal').textContent = p.goal ? '“' + p.goal + '”' : '(goal not received yet)';
+    $('planid').textContent = p.plan_id + (p.job_id ? ' · job ' + p.job_id : '');
+
+    var lead = $('planlead');
+    lead.textContent = '';
+    if (p.leader) {
+      lead.appendChild(document.createTextNode('led by '));
+      lead.appendChild(el('span', 'badge b-leader', p.leader));
+      var ln = S.nodes[p.leader];
+      if (ln && ln.alive === false && !TERMINAL[st]) {
+        lead.appendChild(document.createTextNode(' '));
+        lead.appendChild(el('span', 'badge b-down', 'LEADER DOWN · waiting for takeover'));
+      }
+    } else lead.textContent = 'leader: —';
+
+    var tr = S.planTrack[p.plan_id] || { handovers: [] };
+    var hb = $('planhand');
+    hb.textContent = '';
+    tr.handovers.forEach(function (h) {
+      var pill = el('span', 'handoff', '⟶ handed over ' + h.from + ' → ' + h.to + (h.at_step !== null ? ' at step ' + (h.at_step + 1) : ''));
+      pill.title = 'leader changed mid-run at ' + hhmmss(h.ms);
+      hb.appendChild(pill);
+    });
+
+    // live Gemma tokens while planning
+    var tw = $('plantokwrap');
+    var j = p.job_id ? S.jobs[p.job_id] : null;
+    if (st === 'planning' && p.job_id) {
+      tw.className = 'on';
+      $('plantokjob').textContent = p.job_id + (j && j.node_id ? ' on ' + j.node_id : '');
+      if (j) fillJob($('plantokens'), j, j.state === 'done');
+      else { $('plantokens').textContent = ''; $('plantokens').appendChild(el('span', 'placeholder', 'waiting for tokens…')); }
+    } else if (st === 'planning') {
+      tw.className = 'on'; $('plantokjob').textContent = '';
+      $('plantokens').textContent = ''; $('plantokens').appendChild(el('span', 'placeholder', 'Gemma is writing the plan…'));
+    } else tw.className = '';
+
+    ul.textContent = '';
+    var hi = 0, hs = tr.handovers.filter(function (h) { return h.at_step !== null; });
+    function handMark(h) {
+      var li = el('li', 'handmark');
+      li.appendChild(el('span', 'handoff', '⟶ ' + h.to + ' took over from ' + h.from));
+      ul.appendChild(li);
+    }
+    p.steps.forEach(function (s, i) {
+      while (hi < hs.length && hs[hi].at_step <= i) handMark(hs[hi++]);
+      var sc = stepClass(p, s, i);
+      var li = el('li', 'step s-' + sc[0]);
+      li.appendChild(el('span', 'ic', sc[1]));
+      var lab = stepLabel(s), lbl = el('div', 'lbl');
+      lbl.appendChild(el('span', 'op', (i + 1) + '. ' + lab[0]));
+      lbl.appendChild(document.createTextNode(lab[1]));
+      li.appendChild(lbl);
+      var sub = el('div', 'sub');
+      var tk = s && s.task_id ? S.tasks[s.task_id] : null;
+      var who = (s && (s.assignee || s.node_id)) || (tk && tk.assignee) || null;
+      sub.appendChild(el('span', null, sc[2]));
+      if (who) { var a = el('span', null, '→ '); a.appendChild(el('b', null, who)); sub.appendChild(a); }
+      if (tk && tk.capability) sub.appendChild(el('span', 'mono', tk.capability));
+      if (s && s.task_id) sub.appendChild(el('span', 'mono', 'task ' + shortId(s.task_id)));
+      li.appendChild(sub);
+      var raw = s ? (s.result !== undefined && s.result !== null ? s.result : s.reason) : null;
+      var r = resultText(raw);
+      if (r) {
+        li.appendChild(el('div', 'res ' + (r.ok === true ? 'ok' : (r.ok === false || sc[0] === 'failed' ? 'bad' : '')),
+          (s.op === 'verify' ? 'verify: ' : (sc[0] === 'failed' ? 'reason: ' : 'result: ')) + r.text));
+      }
+      ul.appendChild(li);
+    });
+    while (hi < hs.length) handMark(hs[hi++]);
+    if (!p.steps.length) ul.appendChild(el('li', 'empty', st === 'planning' ? 'steps appear once Gemma answers…' : 'no steps'));
+  }
+
+  // ---------------------------------------------------------------- POST with failover (like Ask)
+  function postAny(path, payload, msgEl, onOk, onFail) {
+    var order = [];
+    if (S.host) order.push(S.host);
+    candidates().forEach(function (a) {
+      var p = S.peers[a];
+      if (order.indexOf(a) < 0 && p && (p.alive || now() - p.lastAlive < 5000)) order.push(a);
+    });
+    if (!order.length && S.origin) order.push(S.origin);
+    var errors = [], body = JSON.stringify(payload || {});
+    (function tryNext(i) {
+      if (i >= order.length) {
+        msgEl.className = 'err';
+        msgEl.textContent = 'failed — ' + (order.length ? errors.join(' | ') : 'no known nodes');
+        if (onFail) onFail();
+        return;
+      }
+      var host = order[i];
+      msgEl.className = ''; msgEl.textContent = 'sending to ' + hostLabel(host) + '…';
+      fetchJSON(HTTP + host + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body }, 5000)
+        .then(function (r) { onOk(r, host); }, function (e) {
+          errors.push(hostLabel(host) + ': ' + e.message);
+          // a 4xx is the swarm's answer (bad goal, unknown plan), not a dead node: stop there
+          tryNext(e.status >= 400 && e.status < 500 ? order.length : i + 1);
+        });
+    })(0);
+  }
+
+  var building = false, cancelling = false;
+  $('goalform').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var g = $('goal').value.trim();
+    if (!g || building) return;
+    building = true; $('buildbtn').disabled = true;
+    var msg = $('cellmsg');
+    postAny('/cell/goal', { goal: g }, msg, function (r, host) {
+      building = false; $('buildbtn').disabled = false;
+      var pid = r && (r.plan_id || (r.plan && r.plan.plan_id));
+      msg.className = 'ok';
+      msg.textContent = 'plan ' + (pid || 'requested') + ' via ' + hostLabel(host) + ((r && (r.leader_id || r.leader)) ? ' → leader ' + (r.leader_id || r.leader) : '');
+      $('goal').value = '';
+      if (r && r.plan && r.plan.plan_id) onPlan(r.plan, true, true);
+      // placeholder until plan.new arrives; no leader here, so it can't fake a "handed over" marker
+      else if (pid && !S.plans[pid]) onPlan({ plan_id: pid, goal: g, state: r.state || 'planning', steps: [], job_id: r.job_id }, true, true);
+      else if (pid) { S.currentPlanId = pid; render.plan = true; schedule(); }
+    }, function () { building = false; $('buildbtn').disabled = false; });
+  });
+  $('presetbtn').addEventListener('click', function () {
+    $('goal').value = 'Insert servo into SO-101';
+    $('goal').focus();
+  });
+  $('cancelbtn').addEventListener('click', function () {
+    var p = S.plans[S.currentPlanId];
+    if (!p || cancelling) return;
+    cancelling = true; $('cancelbtn').disabled = true;
+    var msg = $('cellmsg');
+    postAny('/cell/plans/' + encodeURIComponent(p.plan_id) + '/cancel', {}, msg, function (r, host) {
+      cancelling = false;
+      msg.className = 'ok'; msg.textContent = 'cancel sent for plan ' + p.plan_id + ' via ' + hostLabel(host);
+      if (r && r.plan_id && r.state) onPlan(r, true, false);
+      render.plan = true; schedule();
+    }, function () { cancelling = false; render.plan = true; schedule(); });
+  });
+
+  // ---------------------------------------------------------------- topics (cell.state, arm.*.state)
+  var topicsDirty = false;
+  function openTopics(host) {
+    closeTopics();
+    var tws;
+    try { tws = new WebSocket(WSP + host + '/ws/topics?sub=' + TOPIC_SUB); }
+    catch (e) { retryTopics(host); return; }
+    S.tws = tws;
+    tws.onmessage = function (ev) {
+      if (S.tws !== tws) return;
+      var m;
+      try { m = JSON.parse(ev.data); } catch (e) { return; }
+      try { onSample(m); } catch (e) { if (window.console) console.error('topic sample failed', e, m); }
+    };
+    tws.onerror = function () { /* onclose follows */ };
+    tws.onclose = function () { if (S.tws !== tws) return; S.tws = null; retryTopics(host); };
+  }
+  function retryTopics(host) {
+    clearTimeout(S.twsTimer);
+    // same target as the main socket; if the main one fails over, its onopen reopens us there
+    S.twsTimer = setTimeout(function () { if (S.ws && S.wsOpen && S.host === host && !S.tws) openTopics(host); }, 1000);
+  }
+  function closeTopics() {
+    clearTimeout(S.twsTimer);
+    var t = S.tws;
+    S.tws = null;
+    if (t) { t.onopen = t.onmessage = t.onclose = t.onerror = null; try { t.close(); } catch (e) { /* ignore */ } }
+  }
+  function primeTopics(host) {
+    fetchJSON(HTTP + host + '/topics', null, 1500).then(function (b) {
+      if (S.host !== host || !b || !b.topics || typeof b.topics !== 'object') return;
+      Object.keys(b.topics).forEach(function (k) {
+        var smp = b.topics[k];
+        if (smp && typeof smp === 'object') onSample(Object.assign({ topic: k }, smp), true);
+      });
+    }, function () { /* ignore */ });
+  }
+  function onSample(m, primed) {
+    if (Array.isArray(m)) { m.forEach(function (x) { onSample(x, primed); }); return; }
+    if (!m || typeof m.topic !== 'string') return;
+    var isCell = m.topic === 'cell.state', isArm = /^arm\..+\.state$/.test(m.topic);
+    if (!isCell && !isArm) return;
+    var key = (m.origin || '') + '|' + m.topic;
+    if (typeof m.seq === 'number') {
+      if (S.topicSeq[key] !== undefined && m.seq <= S.topicSeq[key]) return;   // reordered / duplicate
+      S.topicSeq[key] = m.seq;
+    }
+    var rx = now();
+    if (primed && typeof m.ts === 'number') rx = Math.min(rx, tsMs(m.ts));     // cached sample: keep its age
+    var rec = { topic: m.topic, data: m.data || {}, origin: m.origin || null, ts: m.ts, rx: rx };
+    if (isCell) S.cell = rec; else S.arms[m.topic] = rec;
+    topicsDirty = true;
+  }
+  setInterval(function () { if (topicsDirty) { topicsDirty = false; render.cell = true; schedule(); } }, TOPIC_FPS_MS);
+  setInterval(function () { render.cell = true; schedule(); }, 1000);   // keep the age labels honest
+
+  function mm(v) { return typeof v === 'number' && isFinite(v) ? (v * 1000).toFixed(0) : '—'; }
+  function deg(v) { return typeof v === 'number' && isFinite(v) ? v.toFixed(1) : '—'; }
+  function ageText(rec) { var a = (now() - rec.rx) / 1000; return a < 1.5 ? 'live' : a.toFixed(0) + ' s ago'; }
+
+  function renderCellState() {
+    // calibration + objects
+    var c = S.cell, d = c ? c.data : null;
+    var cal = $('calib');
+    cal.textContent = '';
+    if (d) {
+      var ok = !!d.calibrated;
+      cal.appendChild(el('span', 'badge ' + (ok ? 'b-cal' : 'b-nocal'), ok ? 'CALIBRATED' : 'NOT CALIBRATED'));
+      if (typeof d.reproj_err_px === 'number') cal.appendChild(document.createTextNode(' reproj ' + d.reproj_err_px.toFixed(2) + ' px'));
+      if (now() - c.rx > CELL_STALE_MS) { cal.appendChild(document.createTextNode(' ')); cal.appendChild(el('span', 'badge b-stale', 'STALE ' + ageText(c))); }
+    }
+    var tb = $('objects').tBodies[0];
+    tb.textContent = '';
+    var objs = d && Array.isArray(d.objects) ? d.objects : [];
+    var vis = 0;
+    objs.forEach(function (o) {
+      if (!o) return;
+      var v = !!o.visible;
+      if (v) vis++;
+      var tr = el('tr', v ? 'v-yes' : 'v-no');
+      var nm = el('td', 'nm', o.name || '?');
+      if (o.kind) { nm.appendChild(document.createTextNode(' ')); nm.appendChild(el('span', 'kind', o.kind)); }
+      tr.appendChild(nm);
+      tr.appendChild(el('td', 'vis', v ? '✓' : '✗'));
+      var t = Array.isArray(o.table) ? o.table : [];
+      tr.appendChild(el('td', 'n', mm(t[0])));
+      tr.appendChild(el('td', 'n', mm(t[1])));
+      tr.appendChild(el('td', 'n', mm(t[2])));
+      tr.appendChild(el('td', 'n', deg(o.yaw_deg)));
+      tb.appendChild(tr);
+    });
+    if (!objs.length) {
+      var er = el('tr'), td = el('td', 'empty', c ? 'no objects in cell.state' : 'waiting for cell.state…');
+      td.colSpan = 6; er.appendChild(td); tb.appendChild(er);
+    }
+    $('objcount').textContent = c ? vis + '/' + objs.length + ' visible · ' + (d.camera || c.origin || '?') + ' · ' + ageText(c) : '';
+
+    // arms
+    var box = $('arms');
+    var ids = Object.keys(S.arms).sort();
+    box.textContent = '';
+    ids.forEach(function (topic) {
+      var rec = S.arms[topic], a = rec.data || {};
+      var stale = now() - rec.rx > CELL_STALE_MS;
+      var estop = !!a.estop;
+      var card = el('div', 'arm' + (estop ? ' estop' : '') + (stale ? ' stale' : ''));
+      var top = el('div', 'top');
+      top.appendChild(el('span', 'aname', topic.replace(/\.state$/, '')));
+      if (a.driver) top.appendChild(el('span', 'chip mono', a.driver));
+      card.appendChild(top);
+      var bd = el('div', 'badges');
+      bd.appendChild(el('span', 'badge ' + (estop ? 'b-estop' : 'b-estopok'), estop ? 'E-STOP' : 'E-STOP CLEAR'));
+      var busy = !!(a.busy || a.moving);
+      bd.appendChild(el('span', 'badge ' + (busy ? 'b-busy' : 'b-idle'), busy ? 'BUSY' : 'IDLE'));
+      if (a.fault) bd.appendChild(el('span', 'badge b-dead', 'FAULT'));
+      if (a.connected === false) bd.appendChild(el('span', 'badge b-unhealthy', 'DISCONNECTED'));
+      if (stale) bd.appendChild(el('span', 'badge b-stale', 'STALE'));
+      card.appendChild(bd);
+      var grid = el('div', 'pose');
+      function cell(k, v, u) {
+        var dv = el('div'); dv.appendChild(el('div', 'k', k));
+        var vv = el('div', 'v', v); if (u) vv.appendChild(el('span', 'u', u));
+        dv.appendChild(vv); grid.appendChild(dv);
+      }
+      var P = armPose(a);
+      if (P) { cell('x', P.x, 'mm'); cell('y', P.y, 'mm'); cell('z', P.z, 'mm'); cell('yaw', P.yaw, '°'); }
+      var g = armGrip(a);
+      if (g !== null) cell('gripper', g, '% open');
+      if (!P && a.joints && typeof a.joints === 'object') {
+        Object.keys(a.joints).slice(0, 7).forEach(function (jn) { cell(jn.replace(/_/g, ' '), deg(a.joints[jn]), '°'); });
+      }
+      card.appendChild(grid);
+      var foot = [];
+      if (a.action) foot.push('doing ' + a.action);
+      if (a.mode) foot.push('mode ' + a.mode);
+      if (estop && a.estop_reason) foot.push('e-stop: ' + a.estop_reason);
+      if (a.fault && typeof a.fault === 'string') foot.push('fault: ' + a.fault);
+      if (a.task_id) foot.push('task ' + shortId(a.task_id));
+      foot.push('from ' + (rec.origin || '?') + ' · ' + ageText(rec));
+      card.appendChild(el('div', 'foot', foot.join(' · ')));
+      box.appendChild(card);
+    });
+    if (!ids.length) box.appendChild(el('div', 'empty', 'no arm telemetry'));
+    $('armcount').textContent = ids.length || '';
+  }
+  // pose in arm-base metres (contract) -> mm; accepts {x,y,z,yaw}, [x,y,z,yaw] / [x,y,z,r,p,yaw], flat x/y/z, or pose_mm
+  function armPose(a) {
+    var p = a.pose_mm || a.pose || a.tcp || a.ee_pose || null, givenMm = !!a.pose_mm;
+    var x, y, z, yaw;
+    if (Array.isArray(p)) { x = p[0]; y = p[1]; z = p[2]; yaw = p.length >= 6 ? p[5] : p[3]; }
+    else if (p && typeof p === 'object') { x = p.x; y = p.y; z = p.z; yaw = p.yaw !== undefined ? p.yaw : p.yaw_deg; }
+    else if (typeof a.x === 'number') { x = a.x; y = a.y; z = a.z; yaw = a.yaw !== undefined ? a.yaw : a.yaw_deg; }
+    else return null;
+    var f = givenMm ? 1 : 1000;
+    function m(v) { return typeof v === 'number' && isFinite(v) ? (v * f).toFixed(0) : '—'; }
+    return { x: m(x), y: m(y), z: m(z), yaw: deg(yaw) };
+  }
+  function armGrip(a) {
+    var g = a.gripper;
+    if (g && typeof g === 'object') g = g.value !== undefined ? g.value : g.pos;
+    if (typeof g !== 'number' || !isFinite(g)) return null;
+    return (g <= 1 ? g * 100 : g).toFixed(0);
+  }
+
+  // ---------------------------------------------------------------- annotated cell frame (1 s)
+  var cellFrameBusy = false, cellFrameUrl = null, cellFrameShown = null;
+  $('cellframe').onload = function () {
+    // the new blob is on screen: free the previous one
+    if (cellFrameShown && cellFrameShown !== cellFrameUrl) { try { URL.revokeObjectURL(cellFrameShown); } catch (e) { /* ignore */ } }
+    cellFrameShown = cellFrameUrl;
+  };
+  function cellNoFrame(text) {
+    $('cellframe').style.display = 'none';
+    var nf = $('cellnoframe'); nf.style.display = 'block'; nf.textContent = text;
+  }
+  function cellFrameTick() {
+    var host = S.host;
+    if (!host || !S.wsOpen || cellFrameBusy) return;
+    cellFrameBusy = true;
+    var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctl) ctl.abort(); }, 1800);
+    var label = (S.peers[host] && S.peers[host].node_id) || host;
+    var opts = { cache: 'no-store' };
+    if (ctl) opts.signal = ctl.signal;
+    fetch(HTTP + host + '/cell/frame.jpg?t=' + now(), opts)
+      .then(function (r) {
+        if (!r.ok) { var e = new Error('HTTP ' + r.status); e.status = r.status; throw e; }
+        return r.blob();
+      })
+      .then(function (blob) {
+        clearTimeout(timer); cellFrameBusy = false;
+        if (S.host !== host) return;
+        cellFrameUrl = URL.createObjectURL(blob);
+        var f = $('cellframe');
+        f.src = cellFrameUrl; f.style.display = 'block'; $('cellnoframe').style.display = 'none';
+        $('cellframecap').textContent = 'updated ' + hhmmss(now());
+        $('cellframenode').textContent = label;
+      }, function (e) {
+        clearTimeout(timer); cellFrameBusy = false;
+        if (S.host !== host) return;
+        cellNoFrame(e && e.status === 404 ? 'no annotated frame yet' : 'cell camera unavailable');
+        $('cellframecap').textContent = (e && e.status ? 'HTTP ' + e.status : 'unreachable') + ' from ' + hostLabel(host);
+        $('cellframenode').textContent = label;
+      });
+  }
+  setInterval(cellFrameTick, CELL_FRAME_EVERY_MS);
 
   // ---------------------------------------------------------------- clock + boot
   setInterval(function () { $('clock').textContent = hhmmss(now()); }, 1000);

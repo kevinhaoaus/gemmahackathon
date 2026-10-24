@@ -122,7 +122,7 @@ L = in `LEADER_ONLY`: accepted only from the current leader at the current term 
 |---|---|---|---|---|
 | `hb` | | any to all (UDP) | Heartbeat fields (above) | update the peer table and liveness |
 | `sync.req` | | any to one peer (unicast) | `{}` | reply with `sync.resp` |
-| `sync.resp` | | peer to requester (unicast) | `{"jobs": [Job full], "reports": [Report], "tasks": [Task]}` | merge (rules below) |
+| `sync.resp` | | peer to requester (unicast) | `{"jobs": [Job full], "reports": [Report], "tasks": [Task], "plans": [Plan]}` | merge (rules below) |
 | `job.new` | L | leader to all | Job, full form (includes `image_b64`) | store if `job_id` is new |
 | `job.token` | L | leader to all | `{"job_id", "seq", "token", "node_id", "term"}` | store if `(job_id, seq)` is new. `seq` starts at 0. |
 | `job.handoff` | L | new leader to all, **before** its first token | `{"job_id", "from_node", "to_node", "at_seq", "gap_ms", "vision_note", "term"}` | drop the job's tokens with `seq >= at_seq`, record the handoff |
@@ -134,6 +134,8 @@ L = in `LEADER_ONLY`: accepted only from the current leader at the current term 
 | `task.progress` | | assignee to all | Task (`state: "running"`, `progress`) | merge |
 | `task.result` | | assignee (or leader, on give-up) to all | Task (`state: "done"` or `"failed"`, `result`, `error`) | merge. Ignored if its `attempt` is older than the known one. |
 | `task.cancel` | L | leader to all | Task (`state: "cancelled"`) | merge. The assignee cancels its running handler **now**. |
+| `plan.new` | L | leader to all | Plan | store if `plan_id` is new |
+| `plan.update` | L | leader to all | Plan (every state or step transition) | merge by `(term, rev)` |
 | `topic.pub` | | any to all | sample `{"topic", "data", "origin", "seq", "ts"}` | keep if `seq` is newer for `(origin, topic)`, then deliver to subscribers |
 | `event` | | any to all | `{"ts", "level", "node_id", "term", "msg"}` | append to the event log (dashboard) |
 
@@ -142,6 +144,10 @@ Data shapes:
 - **Job (full)**: `{job_id, question, model, vision_mode, vision_text, has_image, image_b64, state: "streaming"|"done", node_id, term, tokens: [{seq, token, node_id}], handoffs: [handoff body], started_ts, done_ts, final_seq, nodes_used}`.
   - The UI form omits `image_b64`; the UI fetches `/frame.jpg`.
   - `job.new` on `/ws/ui` carries only the metadata (no tokens).
+- **Job `kind`**: `"ask"` (default) | `"plan"` | `"verify"`, plus `system` (the system prompt it was started with, reused on resume) and `context` (extra user-turn text, e.g. the object list). Old nodes that don't send these get the defaults.
+- **Plan** (robot cell, [ROBOT_CELL.md](ROBOT_CELL.md)): `{plan_id, goal, state: planning|validating|running|done|failed|cancelled, step, job_id, leader, term, rev, steps: [{op, object|target|check, state, task_id, job_id, attempt, result}], errors}`.
+  - Task ids are deterministic: `<plan>-s<i>-a<attempt>`. Planner job ids: `<plan>-p<attempt>`, `<plan>-v<i>-a<attempt>`.
+  - A new leader resumes running plans. It waits on a step's existing task (never resubmits it) and submits steps that have none. A planning job the old leader didn't finish is continued by the job layer (mid-sentence handoff).
 - **Report**: `{job_id, question, answer, nodes_used, handoffs, vision, timestamp}`. Stored with `sent: bool`.
 - **Task**: `{task_id, capability, args, state, assignee, attempt, result, error, progress, created_ts, updated_ts}`.
   - `state` is one of `queued | assigned | running | done | failed | cancelled`.
@@ -155,6 +161,7 @@ Merge rules (`sync.resp`, and all `task.*` messages):
 | Job known | apply remote handoffs not seen yet (each one truncates at its `at_seq`), then add remote tokens for seqs not held. `done` beats `streaming`. |
 | Report | union by `job_id`. `sent: true` beats `false`. |
 | Task | the incoming copy replaces the local one if its `attempt` is higher, or if `updated_ts` is the same or newer |
+| Plan | the copy with the higher `(term, rev)` wins |
 
 ---
 

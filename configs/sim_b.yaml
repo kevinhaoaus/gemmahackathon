@@ -14,6 +14,28 @@ static_peers: ["127.0.0.1:8701:50001", "127.0.0.1:8703:50003"]
 udp_port: 50002
 broadcast_addr: ""
 data_dir: data/sim
-num_predict: 120
+num_predict: 320    # room for a full JSON plan (up to 12 steps)
 # generic task-bus handlers this node offers (swarmmind/capabilities/builtin.py)
-capabilities: ["echo", "arm.mock"]
+capabilities: ["echo", "arm.mock", "arm.big"]
+capability_config:
+  # the large arm of the cell, simulated; workspace = safe bounds in the arm base frame (metres)
+  arm.big:
+    driver: mock
+    workspace: {x: [0.10, 0.80], y: [-0.50, 0.50], z: [-0.05, 0.50]}
+    # quicker than the real-arm defaults so a simulated pick/place takes seconds, not tens
+    max_speed: 0.25
+    speed: 0.15
+    slow_speed: 0.06
+    retreat_speed: 0.08
+    insert_speed: 0.02
+    insert_step_m: 0.005
+  # robot cell layout (docs/ROBOT_CELL.md): identical on every node, so any leader can plan
+  cell:
+    tag_size_m: 0.04                   # printed black-square edge length
+    table_tags: {0: [0.0, 0.0], 1: [0.60, 0.0], 2: [0.60, 0.40], 3: [0.0, 0.40]}   # id: [x, y] metres, table frame
+    objects:                           # everything Gemma may name; each anchored to a tag
+      servo_1:      {tag: 10, kind: part,    offset: [0.0, 0.0, 0.015], grasp_yaw: 0}
+      so101_slot_1: {tag: 20, kind: slot,    offset: [0.07, 0.0, 0.03], insert_depth: 0.02}   # slot point 7 cm from its tag: a seated part must not cover the tag
+      tray_a:       {tag: 11, kind: fixture, offset: [0.0, 0.0, 0.0]}
+    arms:                              # table frame -> arm base frame (x, y, yaw_deg, z_table)
+      arm.big: {base: [0.30, -0.25, 90.0, 0.0], approach_h: 0.08, speed: 0.05}

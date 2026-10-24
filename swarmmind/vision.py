@@ -447,22 +447,51 @@ class Vision:
         return r.content
 
     def _capture_usb(self, dev: str) -> bytes | None:
-        """USB/V4L2 webcam via OpenCV: "usb:0" (index) or "usb:/dev/video2". Keeps the device open."""
+        """USB/V4L2 webcam via OpenCV: "usb:0" (index) or "usb:/dev/video2", optionally with a
+        mode: "usb:0?w=1920&h=1080&fps=30" (&fourcc=MJPG is the default when a size is given;
+        "fourcc=" keeps the driver's). Keeps the device open; the mode is set once at open.
+        On Windows a numeric index opens through DirectShow (faster, reliable for Logitech cams)."""
+        import sys
+        from urllib.parse import parse_qs
+
         import cv2  # opencv-python(-headless); imported lazily so other modes don't need it
-        cap = getattr(self, "_usb_cap", None)
-        if cap is None or not cap.isOpened():
-            cap = cv2.VideoCapture(int(dev) if dev.isdigit() else dev)
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            self._usb_cap = cap
-        if not cap.isOpened():
-            self._usb_cap = None
-            raise OSError(f"cannot open USB camera {dev!r}")
-        cap.grab()                    # drop the stale buffered frame so the snapshot is current
-        ok, frame = cap.read()
-        if not ok:
-            cap.release()
-            self._usb_cap = None
-            raise OSError(f"USB camera {dev!r} returned no frame")
+        # the agent's frame loop, /frame.jpg and the cell vision loop may capture concurrently
+        lock = self.__dict__.setdefault("_usb_lock", threading.Lock())
+        with lock:
+            path, _, query = dev.partition("?")
+            q = {k: v[-1] for k, v in parse_qs(query, keep_blank_values=True).items()}
+            cap = getattr(self, "_usb_cap", None)
+            if cap is not None and getattr(self, "_usb_dev", None) != dev:
+                cap.release()
+                cap = None
+            if cap is None or not cap.isOpened():
+                if path.isdigit():
+                    api = cv2.CAP_DSHOW if sys.platform == "win32" else cv2.CAP_ANY
+                    cap = cv2.VideoCapture(int(path), api)
+                else:
+                    cap = cv2.VideoCapture(path)
+                if cap.isOpened():
+                    fourcc = q.get("fourcc", "MJPG" if ("w" in q or "h" in q) else "")
+                    if len(fourcc) == 4:       # before the size: 1080p30 over USB needs MJPG
+                        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*fourcc))
+                    for key, prop in (("w", cv2.CAP_PROP_FRAME_WIDTH), ("h", cv2.CAP_PROP_FRAME_HEIGHT),
+                                      ("fps", cv2.CAP_PROP_FPS)):
+                        if q.get(key):
+                            cap.set(prop, float(q[key]))
+                    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                    log.info("vision: USB camera %s opened at %dx%d @ %.0f fps", path,
+                             int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
+                             cap.get(cv2.CAP_PROP_FPS))
+                self._usb_cap, self._usb_dev = cap, dev
+            if not cap.isOpened():
+                self._usb_cap = None
+                raise OSError(f"cannot open USB camera {path!r}")
+            cap.grab()                    # drop the stale buffered frame so the snapshot is current
+            ok, frame = cap.read()
+            if not ok:
+                cap.release()
+                self._usb_cap = None
+                raise OSError(f"USB camera {path!r} returned no frame")
         ok, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
         return buf.tobytes() if ok else None
 
@@ -493,6 +522,13 @@ class Vision:
         return format_detections(det.detect(img))
 
     async def aclose(self) -> None:
+        cap = getattr(self, "_usb_cap", None)
+        if cap is not None:            # release the webcam so a restarted node can reopen it
+            self._usb_cap = None
+            try:
+                cap.release()
+            except Exception:  # noqa: BLE001
+                pass
         if self._client is not None:
             client, self._client = self._client, None
             try:

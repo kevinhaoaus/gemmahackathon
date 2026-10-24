@@ -2,7 +2,8 @@
 
     python -m swarmmind.mock_llm --port 11501 --tps 12 --model gemma4:e4b [--host 127.0.0.1]
 
-Streams a deterministic canned field-assistant answer word by word at --tps. Raw
+Streams a deterministic canned answer word by word at --tps: a valid JSON cell plan for the
+planner prompt, {"ok": true, ...} for the verify prompt, else the canned field answer. Raw
 /api/generate continuation counts the words already in the pre-filled model turn and
 resumes from that index, so an answer handed between nodes joins seamlessly.
 """
@@ -21,6 +22,8 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, PlainTextResponse, Response, StreamingResponse
 
+from .protocol import PLAN_SYSTEM_PROMPT, VERIFY_SYSTEM_PROMPT
+
 # The opener has the same word count with or without an image, so a native-vision answer
 # and its text-only continuation stay word-aligned.
 OPENER_IMAGE = "Reviewing the attached camera frame."
@@ -33,6 +36,9 @@ CANNED = ("The scene shows a dry grass slope below a timber ridge, with a thin s
 
 _MODEL_MARKERS = ("<|turn>model\n", "<start_of_turn>model\n")
 _DETECTED = re.compile(r"Detected:[^\n<]*")
+# object lines of the planner's user turn: "- servo_1: part, visible"
+_OBJECT_LINE = re.compile(r"^- ([A-Za-z0-9_.\-]+): ([A-Za-z_]+)", re.M)
+VERIFY_ANSWER = '{"ok": true, "reason": "servo appears seated"}'
 
 
 def answer_words(user: str, has_image: bool) -> list[str]:
@@ -44,6 +50,26 @@ def answer_words(user: str, has_image: bool) -> list[str]:
         parts.append(f"Detector reports {det[len('Detected:'):].strip()}.")
     parts.append(CANNED)
     return " ".join(parts).split()
+
+
+def plan_words(user: str) -> list[str]:
+    """Canned valid plan (pick part -> place slot -> verify) using names listed in the user turn."""
+    objs = _OBJECT_LINE.findall(user or "")
+    part = next((n for n, k in objs if k == "part"), "servo_1")
+    slot = next((n for n, k in objs if k == "slot"), "so101_slot_1")
+    plan = {"steps": [{"op": "pick", "object": part}, {"op": "place", "target": slot},
+                      {"op": "verify", "check": f"{part} seated in {slot}"}]}
+    return json.dumps(plan).split()       # json.dumps uses single spaces: " ".join() restores it
+
+
+def words_for(system: str, user: str, has_image: bool) -> list[str]:
+    """Pick the canned answer by prompt: plan JSON, verify JSON, or the field answer."""
+    text = f"{system or ''}\n{user or ''}"
+    if PLAN_SYSTEM_PROMPT in text:
+        return plan_words(user)
+    if VERIFY_SYSTEM_PROMPT in text:
+        return VERIFY_ANSWER.split()
+    return answer_words(user, has_image)
 
 
 def split_raw_prompt(prompt: str) -> tuple[str, str]:
@@ -132,7 +158,8 @@ def create_app(model: str, tps: float) -> FastAPI:
         users = [m for m in msgs if m.get("role") == "user"]
         user = users[-1].get("content", "") if users else ""
         has_image = any(m.get("images") for m in users)
-        words = answer_words(user, has_image)
+        system = "\n".join(str(m.get("content", "")) for m in msgs if m.get("role") == "system")
+        words = words_for(system, user, has_image)
         lim = limit_of(body)
         toks = tokens_for(words, 0, "", lim)
         return await respond(body.get("stream", True) is not False, toks, len(words) > lim,
@@ -151,7 +178,7 @@ def create_app(model: str, tps: float) -> FastAPI:
             head, prefix = split_raw_prompt(prompt)
         else:
             head, prefix = prompt, ""
-        words = answer_words(head, bool(body.get("images")))
+        words = words_for(str(body.get("system") or ""), head, bool(body.get("images")))
         start = len(prefix.split())
         lim = limit_of(body)
         toks = tokens_for(words, start, prefix, lim) if start < len(words) else []
