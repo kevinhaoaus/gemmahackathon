@@ -1,0 +1,16 @@
+# OPTIONAL: start the Thor's swarm node at boot (user service, no sudo). Install ON THE THOR with:
+#   mkdir -p ~/.config/systemd/user && cp ~/swarmmind-jetson/scripts/swarmmind-thor.service ~/.config/systemd/user/swarmmind.service
+#   pkill -f "[s]warmmind.agent"; systemctl --user daemon-reload && systemctl --user enable --now swarmmind
+# (linger is already on for teamtacos, so it also starts without a login.) Remove with: systemctl --user disable --now swarmmind
+[Unit]
+Description=SwarmMind node (thor)
+After=ollama.service network-online.target
+
+[Service]
+WorkingDirectory=%h/swarmmind-jetson
+ExecStart=%h/gemmahackathon/.venv/bin/python -m swarmmind.agent --config configs/thor.yaml
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target
