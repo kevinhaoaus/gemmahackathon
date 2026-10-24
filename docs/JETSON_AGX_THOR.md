@@ -1,6 +1,6 @@
 # Jetson AGX Thor setup
 
-The Thor is the swarm's **rank-200 leader**. It answers every question while it's alive and healthy, sees the workspace through native Gemma 4 vision, and can host the SO-101 arm. If it dies, the Legion (rank 100) finishes the answer mid-sentence. When it comes back, it takes over again only after the current job finishes.
+The Thor is the swarm's **rank-200 leader**. It answers every question while it's alive and healthy, sees the workspace through native Gemma 4 vision. If it dies, the Legion (rank 100) finishes the answer mid-sentence. When it comes back, it takes over again only after the current job finishes.
 
 | | |
 |---|---|
@@ -131,8 +131,6 @@ That installs the wheels offline, skips Coral and model copying (Thor uses Ollam
 | `host_ip` | `192.168.1.30` (or `""` to auto-detect) |
 | `static_peers` | every other node, e.g. `["192.168.1.36:8700", "192.168.1.41:8700"]`. Required if the venue Wi-Fi blocks broadcast. |
 | `camera_url` | a USB webcam: `usb:0` (or `usb:/dev/video2`). Phone: `http://<phone-ip>:8080/shot.jpg`. List devices with `ls /dev/video*` or `v4l2-ctl --list-devices`. |
-| `capabilities` | `["arm.so101"]` if the SO-101's USB is plugged into the Thor |
-| `capability_config` | `{"arm.so101": {"port": "/dev/ttyACM0", "mock": false}}` (run `sudo usermod -aG dialout $USER`, then log out and back in) |
 | `ssl_certfile` / `ssl_keyfile` | optional. HTTPS on :8443 so a phone browser exposes its IMU at `https://192.168.1.30:8443/teleop` |
 
 Self-signed cert for the phone teleop page:

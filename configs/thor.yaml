@@ -29,7 +29,7 @@ detector_model_cpu: ""     # optional plain .tflite detector for handoff labels;
 detector_labels: ""        # COCO labels for the optional detector
 # Workspace camera snapshot URL: http(s)://.../shot.jpg, file:<path>, mock:, or "" for none.
 # 192.168.1.50 = the Android IP Webcam phone; replace it, or "" if this node has no camera.
-camera_url: ""           # the bench camera is on the Legion; the Thor fetches its frames over the cable
+camera_url: "usb:0?w=1920&h=1080&fps=30"   # Brio 100 on the Thor (/dev/video0). Pick another in the portal if needed
 
 # --- network (LAN only) -----------------------------------------------------
 # Plan: thor .30 (this), legion .36, pi .40, macbook .41, macbook2 .42. Replace with your IPs.
@@ -44,8 +44,11 @@ takeover_stable_s: 3.0     # stability required before preempting a healthy lowe
 startup_grace_s: 1.0       # listen this long before claiming leadership
 
 # --- task bus ---------------------------------------------------------------
-capabilities: []           # add "arm.so101" here if the SO-101's USB cable is plugged into the Thor
+capabilities: ["vision.cell"]   # this Thor runs the bench perception (AprilTags, marks). Only ONE node may run vision.cell
 capability_config:   # per-capability settings, e.g. {"arm.so101": {"port": "/dev/ttyACM0", "mock": false}}; plus the shared cell block
+  vision.cell:
+    source: node               # this node's camera (camera_url above)
+    rate_hz: 2
   # robot cell / LabMate layout (docs/ROBOT_CELL.md, docs/LABMATE.md): IDENTICAL on every node, so any
   # leader can run LabMate. Measure tag_size_m and table_tags on the real bench (metres, table frame).
   cell:

@@ -15,12 +15,11 @@ Brio webcam (overhead) ──USB──┐
 reBot B601 arm ─────────USB───┤ Legion (Windows, RTX 4070)  "hands + eyes": vision.cell + arm.cell, rank 100
                               │
 Jetson AGX Thor ──────────────┘ LAN                         "brain": leader, Gemma, rank 200
-SO-101 (backup arm) ── USB ── Thor or a MacBook, later      advertises arm.cell too (redundant arm)
 ```
 
 - **Leadership:** the Thor leads, being the fastest Gemma. A human at the dashboard can always stop or cancel (override B).
 - **Pulling the Thor's cable:** the Legion becomes leader. The arm and camera are on the Legion, so they keep going.
-- **Arm failover:** when the backup SO-101 is attached, the leader reassigns arm work to it if the reBot or its host dies. The reBot is preferred while it's available.
+- **One arm:** there is no backup arm. If the reBot or its host dies, LabMate keeps seeing the bench and reports each hazard it could not move as "NOT fixed; a human must <fix>".
 
 ## Rules
 

@@ -33,7 +33,7 @@ Fastest route to a real pick-and-place is steps 1–7; everything else can wait.
 | 11 | LabMate → **Fetch** "screwdriver" | the screwdriver is brought to the handover spot (tag 11) |
 | 12 | Thor joins (`docs/JETSON_AGX_THOR.md`), then pull the Thor's Ethernet mid-task | Thor leads while alive; on pull, the Legion takes over within ~1 s and the arm finishes the task (the arm and camera are on the Legion) |
 
-**Not hardware-tested yet:** the reBot driver (joint signs/offsets assumed to match the URDF; verify in step 3), the SO-101 backup arm, LabMate end to end (one simulator e2e test still fails). Simulator-only tests: `.venv\Scripts\python -m pytest -q tests`.
+**Not hardware-tested yet:** the reBot driver (joint signs/offsets assumed to match the URDF; verify in step 3), LabMate end to end (one simulator e2e test still fails). Simulator-only tests: `.venv\Scripts\python -m pytest -q tests`.
 
 ## Nodes
 
@@ -43,7 +43,7 @@ Fastest route to a real pick-and-place is steps 1–7; everything else can wait.
 | Lenovo Legion 5i, RTX 4070 | 100 | Ollama → `gemma4:e4b` | native |
 | MacBook Airs | 60–80 | Ollama (Metal) → `gemma4:e4b` | native |
 | Raspberry Pi 5 | 50 | LiteRT-LM → `gemma-4-E4B-it.litertlm` | Coral EdgeTPU → TFLite CPU → none |
-| Arm host (any of the above) | — | — | serves `arm.so101` (Feetech serial) |
+| Arm host (the laptop the reBot is plugged into) | — | — | serves `arm.cell` (reBot over USB2CAN) |
 | Phone | — | not a node: browser client | IMU teleop via `/teleop` |
 
 Highest alive, healthy rank leads. One YAML per node in `configs/`. Adding a machine means adding a file.
