@@ -13,9 +13,10 @@ bind_host: "0.0.0.0"       # listen on all interfaces
 # --- inference (local only) -------------------------------------------------
 backend: ollama            # Ollama runs natively on Jetson with CUDA
 ollama_url: "http://127.0.0.1:11434"   # this node's own Ollama; peers never call it
-# Largest Gemma 4 copied to this machine over the LAN (never pulled). Must exactly
+# Gemma 4 copied to this machine over the LAN (never pulled). Only gemma4:e4b exists on our machines;
+# swap in a bigger one (gemma4:26b / 31b) only if someone brings it on a drive. Must exactly
 # match a name in `ollama list` on the Thor, e.g. gemma4:31b or gemma4:26b.
-model: "gemma4:31b"
+model: "gemma4:e4b"
 litert_model_path: ""      # unused with backend: ollama
 litert_backend: cpu        # unused with backend: ollama
 model_supports_images: true  # Gemma 4 is multimodal: frames go straight into the prompt

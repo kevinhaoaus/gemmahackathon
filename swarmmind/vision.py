@@ -410,6 +410,8 @@ class Vision:
                 data = await self._capture_http(url)
             elif url.startswith("file:"):
                 data = await asyncio.to_thread(self._read_file, url[len("file:"):])
+            elif url.startswith("usb:"):
+                data = await asyncio.to_thread(self._capture_usb, url[len("usb:"):])
             elif url.startswith("mock:"):
                 data = await asyncio.to_thread(_mock_jpeg, time.time())
             else:
@@ -443,6 +445,26 @@ class Vision:
             self._rl.warn("http_status", f"vision: camera at {url} returned HTTP {r.status_code}")
             return None
         return r.content
+
+    def _capture_usb(self, dev: str) -> bytes | None:
+        """USB/V4L2 webcam via OpenCV: "usb:0" (index) or "usb:/dev/video2". Keeps the device open."""
+        import cv2  # opencv-python(-headless); imported lazily so other modes don't need it
+        cap = getattr(self, "_usb_cap", None)
+        if cap is None or not cap.isOpened():
+            cap = cv2.VideoCapture(int(dev) if dev.isdigit() else dev)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            self._usb_cap = cap
+        if not cap.isOpened():
+            self._usb_cap = None
+            raise OSError(f"cannot open USB camera {dev!r}")
+        cap.grab()                    # drop the stale buffered frame so the snapshot is current
+        ok, frame = cap.read()
+        if not ok:
+            cap.release()
+            self._usb_cap = None
+            raise OSError(f"USB camera {dev!r} returned no frame")
+        ok, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+        return buf.tobytes() if ok else None
 
     @staticmethod
     def _read_file(path: str) -> bytes:

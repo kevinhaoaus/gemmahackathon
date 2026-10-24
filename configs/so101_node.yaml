@@ -1,0 +1,53 @@
+# SwarmMind node config: the node that OWNS the LeRobot SO-101 arm (e.g. a MacBook Air with the
+# arm's USB serial adapter plugged in). Every key must be a NodeConfig field (swarmmind/config.py).
+# Run: .venv/bin/python -m swarmmind.agent --config configs/so101_node.yaml
+# Phone teleop: open http://<this node's IP>:8700/teleop  (see dashboard/teleop.html notes; motion
+# sensors need a secure context: `adb reverse tcp:8700 tcp:8700` + http://localhost:8700/teleop, or HTTPS)
+
+# --- identity ---------------------------------------------------------------
+node_id: armhost
+rank: 60                   # below the GPU nodes: the arm host should rarely lead
+host_ip: ""                # "" = auto-detect the LAN IP
+http_port: 8700
+bind_host: "0.0.0.0"
+
+# --- inference (local only) -------------------------------------------------
+backend: ollama
+ollama_url: "http://127.0.0.1:11434"
+model: "gemma4:e4b"
+model_supports_images: true
+num_predict: 256
+
+# --- vision -----------------------------------------------------------------
+vision_mode: native
+camera_url: ""             # e.g. "http://192.168.1.50:8080/shot.jpg" for a phone webcam
+
+# --- network (LAN only) -----------------------------------------------------
+static_peers: ["192.168.1.20:8700", "192.168.1.30:8700"]   # e.g. Jetson Thor, Legion laptop; replace
+udp_port: 50000
+broadcast_addr: "255.255.255.255"
+
+# --- task bus: the arm ------------------------------------------------------
+capabilities: ["arm.so101"]
+capability_config:
+  arm.so101:
+    # Serial port of the arm's bus adapter. Find it with `ls /dev/tty.usbmodem*` (macOS),
+    # `ls /dev/ttyACM*` (Linux), Device Manager -> Ports (Windows, e.g. "COM5"), or
+    # `python -m lerobot.find_port` (unplug/replug when asked).
+    port: "/dev/tty.usbmodemXXXX"
+    mock: true             # set false to drive the real servos (falls back to mock if the bus fails)
+    # calibration: "configs/so101_calibration.json"   # {joints: {name: {min, max, home}}, poses: {...}}
+    max_step_ticks: 15     # per control tick per joint (15 @ 30 Hz ~= 40 deg/s); keep small on hardware
+    rate_hz: 30
+    torque_off_on_estop: false   # true = arm goes limp on e-stop (it will drop!)
+    teleop:
+      gain_pan: 1.0        # joint deg per phone deg; negative inverts
+      gain_lift: 1.0
+      gain_elbow: -1.0
+      gain_roll: 1.0
+      beta_split: 0.5      # share of the pitch going to shoulder_lift (rest to elbow_flex)
+
+# --- store-and-forward uplink -----------------------------------------------
+uplink_urls: []
+data_dir: data
+log_level: INFO

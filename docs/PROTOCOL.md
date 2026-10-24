@@ -11,7 +11,7 @@ Contents:
 4. [Jobs, streaming and mid-sentence handoff](#4-jobs-streaming-and-mid-sentence-handoff)
 5. [Store-and-forward reports](#5-store-and-forward-reports)
 6. [Capabilities & task bus](#6-capabilities--task-bus)
-7. [Topics (streams)](#7-topics-streams)
+7. [Topics (streams), choosing a primitive, phone teleop](#7-topics-streams)
 8. [Timing budget](#8-timing-budget)
 9. [Failure modes](#9-failure-modes)
 
@@ -256,7 +256,7 @@ If the new leader also dies, the handoff fires again; `handoffs` is a list. Lead
 
 ## 6. Capabilities & task bus
 
-The task bus gives the swarm generic, fault-tolerant work beyond LLM answers: robot arms, grippers, pan-tilt cameras, sirens. It reuses the same election, liveness, sync and dedupe as the rest of the protocol.
+The task bus gives the swarm generic, fault-tolerant work beyond LLM answers: robot arms, grippers, pan-tilt cameras. It reuses the same election, liveness, sync and dedupe as the rest of the protocol. For deciding between jobs, tasks and topics, see 7.1.
 
 ### 6.1 Capabilities
 
@@ -282,7 +282,14 @@ assignee runs handler --task.progress--> all ... --task.result--> all  (done | f
 leader or operator: POST /task/{id}/cancel  --> leader --task.cancel--> all  (assignee stops now)
 ```
 
-**Scheduling (leader).** Candidates are the leader itself if it has the capability, plus alive peers whose heartbeat lists it. They are ranked by highest `rank`, then the fewest unfinished tasks already assigned, then highest `node_id`. A peer must also be `healthy`, which only matters for `llm.*` capabilities. A device-only node (for example `backend: none` driving an arm) is never LLM-healthy, so the health requirement applies only to `llm.*` capabilities. For device capabilities, a node removes the capability from its heartbeat while the device is not ready. If there is no candidate, the task stays `queued`, and the leader retries every tick (50 ms).
+**Scheduling (leader).** Candidates are the leader itself if it has the capability, plus alive peers whose heartbeat lists it. They are ranked by highest `rank`, then the fewest unfinished tasks already assigned, then highest `node_id`.
+
+Health rules for candidates:
+- `healthy` (LLM health) is required only for `llm.*` capabilities.
+- For device capabilities, a node removes the capability from its heartbeat while the device is not ready.
+- Implementation note: `tasks.py` `_candidates` currently requires `hb.healthy` for every peer. A `backend: none` device node (never LLM-healthy) therefore only receives tasks when it is the leader itself. Until that is fixed, run arm controllers on a node that has an LLM (Legion, MacBook, Thor).
+
+If there is no candidate, the task stays `queued`, and the leader retries every tick (50 ms).
 
 **Reassignment.** On each tick, the leader re-sends `task.assign` with `attempt + 1` for any unfinished task whose assignee is dead. It prefers a different capable node, and falls back to the same node once it is back. After `MAX_ATTEMPTS` = 3, the task ends as `failed` ("gave up after 3 attempts"). A new leader runs the same watchdog over the synced task table. Tasks on alive assignees are left alone, because `task.progress` and `task.result` are not leader-only and survive a leader change.
 
@@ -294,133 +301,240 @@ A node never runs two copies of the same task at once, and results from supersed
 
 ### 6.3 Handler API
 
-Handler modules live in `swarmmind/capabilities/*.py`. At startup, the agent imports **every** module in that package (`tasks.load_capability_modules()`), and importing a module registers its handlers. A module that fails to import is logged and skipped, without taking the node down. A node *runs* a handler only if its config lists the capability.
+Handler modules live in `swarmmind/capabilities/*.py`. At startup, the agent imports **every** module in that package, and importing a module registers its handlers. A module that fails to import is logged and skipped, without taking the node down. A node *runs* a handler only if its config lists the capability. Config `capabilities` without a handler are logged at startup.
 
 ```python
 from swarmmind.tasks import register_capability
 
-@register_capability("arm.kinova")
+@register_capability("arm.so101")
 async def handler(args: dict, progress) -> dict:
     # args:     the "args" from POST /task, plus "_task_id"
     # progress: await progress({...}) -> broadcasts task.progress (shown in every dashboard)
     # return:   JSON-serializable -> task.result {state: "done", result}
     # raise:    any exception     -> task.result {state: "failed", error: "Type: msg"}
     ...
+
+async def setup(node) -> None:
+    # optional; called once at startup on EVERY node (whether or not it lists the capability),
+    # so return early unless this node owns the device
+    if "arm.so101" not in node.cfg.capabilities:
+        return
+    settings = node.cfg.capability_config.get("arm.so101", {})   # from the node YAML
+    ...  # open the serial port, subscribe to topics, start a telemetry loop
 ```
 
-- Handlers run as asyncio tasks on the assignee. Blocking SDK calls must go through `await asyncio.to_thread(...)`.
+The objects `setup` can use:
+
+| Name | Use |
+|---|---|
+| `node.cfg` | `NodeConfig`, including `capability_config` |
+| `node.election.term`, `node.election.leader_id`, `node.election.is_leader` | term and leader checks |
+| `await node.publish(topic, data)` | publish a topic sample (section 7) |
+| `node.event(msg, level=...)` | dashboard event log |
+
+- Handlers run as asyncio tasks on the assignee. Blocking SDK and serial calls go through `await asyncio.to_thread(...)`.
 - **Cancellation is the e-stop.** On `task.cancel`, or when the node shuts down, the handler's asyncio task is cancelled, and `asyncio.CancelledError` is raised at its next `await`. Arm handlers must:
   - `await` (a progress call or a short `asyncio.sleep`) between motion segments, so a cancel lands within one segment,
-  - catch `CancelledError`, command the arm to stop or hold, and then **re-raise**,
+  - catch `CancelledError`, command the arm to stop or hold torque, and then **re-raise**,
   - never block the event loop for longer than one segment.
 
-### 6.4 Worked example: adding a Kinova arm node
+### 6.4 Worked example: the SO-101 robot cell ("robot building robot")
 
-**1. Config** (`configs/arm.yaml`), on whatever machine is wired to the arm (a second Pi, say):
+Hardware:
+- A LeRobot **SO-101** arm (Feetech STS3215 servos on one USB serial bus), plugged into **any** node.
+- USB webcams watching the workspace.
+- A phone as the teleop controller.
+- Gemma 4 on the leader (Thor when it is up) plans the assembly steps.
+
+| Primitive | Used for |
+|---|---|
+| job | Gemma reads the camera frame plus the assembly goal and answers with a JSON plan |
+| task `arm.so101` | one discrete step: `{action: "pick", part: "M3 screw", from: "tray A", to: "slot 2"}` |
+| topic `arm.so101.state` | joint positions published by the arm node at about 20 Hz |
+| topic `teleop.so101` | phone orientation at 30-50 Hz for manual control |
+
+**1. Config.** Add these lines to the YAML of the machine the arm's USB cable is plugged into, for example a MacBook:
 
 ```yaml
-node_id: arm1
-rank: 20                       # tie-break among arm nodes; no LLM, so it never leads
-backend: none                  # no LLM on this node
-vision_mode: none
-static_peers: ["192.168.1.36:8700", "192.168.1.40:8700"]
-capabilities: ["arm.kinova"]   # advertised in heartbeats; tasks with this capability come here
+capabilities: ["arm.so101"]
+capability_config:
+  arm.so101: {port: "/dev/tty.usbmodem5A460829821", mock: false}   # Linux: /dev/ttyACM0, Windows: COM5
 ```
 
-**2. Handler** (`swarmmind/capabilities/kinova.py`, picked up automatically):
+**2. Handler module** (`swarmmind/capabilities/so101.py`, imported automatically):
 
 ```python
-import asyncio
+import asyncio, time
 from swarmmind.tasks import register_capability
+from swarmmind.topics import subscribe
 
-POSES = {"home": [0, 15, 180, 230, 0, 55, 90], "inspect": [0, 40, 160, 200, 0, 80, 90]}
-_done: dict[str, dict] = {}                       # idempotency cache: task_id -> result
+BOUNDS = {"x": (0.10, 0.35), "y": (-0.20, 0.20), "z": (0.01, 0.25)}   # metres, this cell
+STATIONS = {"tray A": (0.20, -0.12, 0.03), "tray B": (0.20, 0.12, 0.03),
+            "slot 1": (0.28, -0.05, 0.05), "slot 2": (0.28, 0.05, 0.05)}
+TELEOP_DEADMAN_S = 0.3
+_arm = None                      # your driver around the Feetech bus (e.g. via LeRobot)
+_node = None
+_done: dict[str, dict] = {}      # idempotency cache: task_id -> result
+_teleop = {"last": 0.0}
 
-@register_capability("arm.kinova")
-async def kinova(args: dict, progress) -> dict:
+def _check(target):
+    for axis, v in zip("xyz", target):
+        lo, hi = BOUNDS[axis]
+        if not lo <= v <= hi:
+            raise ValueError(f"{axis}={v} outside [{lo}, {hi}]")      # fail, never clamp
+
+async def _move(target, progress, term):
+    _check(target)
+    for pct, waypoint in _arm.plan_cartesian(target, steps=10):      # short segments
+        if _node.election.term != term or _node.election.leader_id is None:
+            raise RuntimeError("leader changed mid-move; stopping")   # term check
+        await asyncio.to_thread(_arm.goto, waypoint)
+        await progress({"step": "moving", "pct": pct})               # cancel lands here
+
+@register_capability("arm.so101")
+async def so101(args: dict, progress) -> dict:
     tid = args["_task_id"]
-    if tid in _done:                              # redelivered: never move twice
+    if tid in _done:                                   # redelivered: never repeat a pick
         return _done[tid]
-    target = POSES[args["pose"]]                  # absolute goal; KeyError -> task failed
+    term = _node.election.term
     try:
-        start = await asyncio.to_thread(read_joints)
-        for i, waypoint in enumerate(interpolate(start, target, steps=20), 1):
-            await asyncio.to_thread(send_joint_angles, waypoint)   # one short segment
-            await progress({"step": "moving", "pct": 5 * i})       # cancel lands here
-    except asyncio.CancelledError:
-        await asyncio.to_thread(stop_arm)         # e-stop: hold position
+        if args["action"] == "pick":
+            await _move(STATIONS[args["from"]], progress, term)
+            await asyncio.to_thread(_arm.grip, True)
+            await _move(STATIONS[args["to"]], progress, term)
+            await asyncio.to_thread(_arm.grip, False)
+        elif args["action"] == "home":
+            await _move(_arm.HOME, progress, term)
+        else:
+            raise ValueError(f"unknown action {args['action']!r}")
+    except BaseException:                              # cancel (e-stop), term change, error
+        await asyncio.to_thread(_arm.hold)             # hold position, torque on
         raise
-    _done[tid] = {"pose": args["pose"], "joints": await asyncio.to_thread(read_joints)}
+    _done[tid] = {"action": args["action"], "part": args.get("part"), "at": args.get("to")}
     return _done[tid]
+
+async def _on_teleop(sample):                          # ~30-50 Hz from the phone
+    if _node.election.leader_id is None:
+        return
+    target = _arm.from_orientation(sample["data"])     # map alpha/beta/gamma to a pose
+    try:
+        _check(target)
+    except ValueError:
+        return                                         # out of bounds: ignore the sample
+    _teleop["last"] = time.monotonic()
+    await asyncio.to_thread(_arm.goto, target)
+
+async def _loops():
+    while True:
+        await asyncio.sleep(0.05)
+        if _teleop["last"] and time.monotonic() - _teleop["last"] > TELEOP_DEADMAN_S:
+            _teleop["last"] = 0.0
+            await asyncio.to_thread(_arm.hold)          # deadman: no sample for 300 ms
+        await _node.publish("arm.so101.state", {"joints": await asyncio.to_thread(_arm.read_joints)})
+
+async def setup(node) -> None:
+    global _arm, _node
+    if "arm.so101" not in node.cfg.capabilities:
+        return
+    _node = node
+    s = node.cfg.capability_config.get("arm.so101", {})
+    _arm = await asyncio.to_thread(open_so101, s.get("port"), s.get("mock", False))
+    subscribe("teleop.so101", _on_teleop)
+    asyncio.create_task(_loops())
 ```
 
-`read_joints`, `send_joint_angles`, `interpolate` and `stop_arm` are your wrappers around the Kinova SDK, kept in the same module.
+`open_so101` and the `_arm` methods (`plan_cartesian`, `goto`, `grip`, `hold`, `read_joints`, `from_orientation`, `HOME`) are your driver layer over the Feetech bus. `builtin.py`'s `arm.mock` shows the same shape with no hardware.
 
-**3. Run** `python -m swarmmind.agent --config configs/arm.yaml`. `arm1` shows up in every dashboard with `arm.kinova`. Then:
+**3. Plan, confirm, execute** (client side; 6.6). Ask Gemma for a JSON plan, show it to the operator, then submit one task per step and wait for each `task.result` before sending the next.
 
-```
-POST http://<any-node>:8700/task   {"capability": "arm.kinova", "args": {"pose": "inspect"}}
--> {"task_id": "3f9a1c2e", "assignee": "arm1", "state": "assigned"}
-POST http://<any-node>:8700/task/3f9a1c2e/cancel      # e-stop
-```
+A different arm follows the same pattern: a Kinova node is a config with `capabilities: ["arm.kinova"]` plus `swarmmind/capabilities/kinova.py` registering `@register_capability("arm.kinova")`.
 
 ### 6.5 Safety rules for actuators
 
-- **Stop.** `POST /task/{id}/cancel` works on any node. It reaches the leader, which broadcasts `task.cancel`, and the assignee's handler is cancelled immediately. A dashboard stop button calls it for every running arm task.
-- **Leader check.** `task.assign` and `task.cancel` are leader-only, so a stale or partitioned leader can neither start nor redirect motion. Handlers should move in short segments, each followed by an `await`, so that a cancel always takes effect within one segment.
-- **Dead man.** An arm handler that streams motion from a topic (teleop) must stop when samples go stale, for example after 300 ms with no new `seq` (section 7). It must not keep executing the last command.
-- **Bounds.** Validate every target against workspace limits before moving, as `arm.mock` does, and fail the task rather than clamp silently.
-- **Humans decide.** An LLM may *propose* an action, but a person confirms it before it is submitted (6.6).
+- **Stop.** `POST /task/{id}/cancel` works on any node. It reaches the leader, which broadcasts `task.cancel`, and the assignee's handler is cancelled at its next `await`. A dashboard stop button calls it for every running arm task.
+- **Term checks.** `task.assign` and `task.cancel` are leader-only, so a stale or partitioned leader can neither start nor redirect motion. A handler records `node.election.term` when it starts and stops moving if the term changes, or if `leader_id` becomes `None`, mid-task.
+- **Deadman.** Teleop motion stops when no `teleop.so101` sample has arrived for **300 ms**. The handler never keeps executing the last command.
+- **Bounds.** Validate every target against workspace limits before moving, and fail the task (or drop the teleop sample) rather than clamp silently.
+- **Idempotency.** Cache results by `_task_id`, so a redelivered pick never runs twice.
+- **Humans decide.** Gemma *proposes* steps, and a person confirms the plan before tasks are submitted.
 
-### 6.6 Chaining: LLM answer to arm action
+### 6.6 Chaining: LLM plan to arm tasks
 
-The swarm does not chain automatically. A client (script or dashboard button) asks for structured output, shows it to the operator, and submits the task:
+The swarm does not chain automatically. A client (script or dashboard button) asks for structured output, shows it to the operator, and submits the steps:
 
 ```python
 import asyncio, json, httpx, websockets
 
-NODE = "192.168.1.36:8700"   # any node
+NODE = "192.168.1.30:8700"   # any node
+
+async def wait_for(ui, kind, key, value):
+    async for raw in ui:                 # survives handoff/failover: any node relays it
+        msg = json.loads(raw)
+        if msg["type"] == kind and msg["body"].get(key) == value:
+            return msg["body"]
 
 async def main():
     async with httpx.AsyncClient(timeout=10) as http, websockets.connect(f"ws://{NODE}/ws/ui") as ui:
-        q = 'Look at the scene. Reply with ONLY JSON {"pose": "home"|"inspect", "why": str}.'
+        q = ('Goal: put the M3 screw from tray A into slot 2. Look at the workspace. Reply with ONLY '
+             'JSON {"steps": [{"action": "pick", "part": str, "from": str, "to": str}]}.')
         job_id = (await http.post(f"http://{NODE}/ask", json={"question": q})).json()["job_id"]
-        async for raw in ui:              # survives handoff: job.done comes from whoever finished
-            msg = json.loads(raw)
-            if msg["type"] == "job.done" and msg["body"]["job_id"] == job_id:
-                text = msg["body"]["answer"]
-                break
-        action = json.loads(text[text.index("{"): text.rindex("}") + 1])
-        if input(f"Move arm to {action['pose']} ({action['why']})? [y/N] ").lower() == "y":
-            r = await http.post(f"http://{NODE}/task", json={
-                "capability": "arm.kinova", "args": {"pose": action["pose"]},
-                "task_id": f"{job_id}-arm"})      # idempotent resubmit if we retry
-            print(r.json())
+        text = (await wait_for(ui, "job.done", "job_id", job_id))["answer"]
+        plan = json.loads(text[text.index("{"): text.rindex("}") + 1])["steps"]
+        print(json.dumps(plan, indent=2))
+        if input("Execute this plan? [y/N] ").lower() != "y":
+            return
+        for i, step in enumerate(plan):
+            r = (await http.post(f"http://{NODE}/task", json={
+                "capability": "arm.so101", "args": step,
+                "task_id": f"{job_id}-{i}"})).json()        # stable id: resubmits are idempotent
+            res = await wait_for(ui, "task.result", "task_id", r["task_id"])
+            if res["state"] != "done":
+                print("step failed:", res["error"]); break
 
 asyncio.run(main())
 ```
 
-If the node the client is connected to dies, reconnect to another node from `GET /peers`. Every node holds the job, so `GET /state` shows whether it is already `done`.
+If the node the client is connected to dies, reconnect to another node from `GET /peers`. Every node holds the jobs and tasks (`GET /state`, `GET /tasks`).
 
 ---
 
 ## 7. Topics (streams)
 
-Tasks are for discrete commands. Topics are for high-rate, lossy, latest-value-wins streams: phone IMU to arm teleop, arm joint telemetry, sensor readings. They are not leader-gated, not persisted and not synced.
+Topics are for high-rate, lossy, latest-value-wins streams: phone IMU to arm teleop, arm joint telemetry, per-frame detections. They are not leader-gated, not persisted and not synced. Each sample fans out over the full-mesh peer bus as `topic.pub`.
 
 - **Names** are dotted, for example `imu.phone1`, `teleop.so101`, `arm.so101.state`.
-- **Sample**: `{topic, data, origin, seq, ts}`. `seq` is microseconds since the epoch, strictly increasing per origin, so it stays monotonic across restarts.
+- **Sample**: `{topic, data, origin, seq, ts}`. `seq` is microseconds since the epoch, strictly increasing per origin, so it keeps increasing across restarts.
 - **Receivers** drop a sample whose `seq` is not newer than the last one seen for `(origin, topic)`. Reordering can never move an arm backwards.
 - **Publish**:
-  - `POST /pub/<topic>` with JSON data, or
+  - `POST /pub/{topic}` (JSON body = `data`), or
   - send `{"topic", "data"}` on `WS /ws/topics`, or
   - call `await node.publish(topic, data)` in-process.
-
-  The sample is broadcast as `topic.pub`.
 - **Subscribe**:
-  - in-process (capability modules): `from swarmmind.topics import subscribe; subscribe("teleop.so101", on_sample)`, where `on_sample` is `async def on_sample(sample)`.
-  - remote clients: `WS /ws/topics?sub=teleop.,arm.`
-  - snapshot: `GET /topics`.
+  - in-process (capability modules): `from swarmmind.topics import subscribe; subscribe("teleop.so101", async_cb)`. `async_cb(sample)` is called for every topic that starts with the prefix.
+  - remote clients: `WS /ws/topics?sub=prefix1,prefix2` (bidirectional: publish on the same socket).
+  - latest value per topic: `GET /topics`.
+
+### 7.1 Choosing a primitive
+
+| Primitive | Use when | Delivery | Example |
+|---|---|---|---|
+| **job** | an LLM answer, streamed token by token | leader-only, mid-sentence handoff on leader death, report on completion | "plan the assembly steps" |
+| **task** | a discrete command with exactly one executor | leader assigns, reassigned on assignee death, at-least-once (idempotent by `task_id`), cancellable | "pick part 3 and place it in slot B" |
+| **topic** | a continuous stream where only the newest value matters | best effort, latest wins, no persistence | IMU at 50 Hz, joint states, detections per frame |
+
+### 7.2 Phone teleop and the IMU caveat
+
+`GET /teleop` serves a phone page that publishes `teleop.so101` (device orientation) at about 30-50 Hz over `/ws/topics`. The arm node subscribes to it (6.4).
+
+Browsers expose `DeviceOrientationEvent` and `DeviceMotionEvent` only in a **secure context** (HTTPS or `localhost`). A phone opening `http://192.168.1.30:8700/teleop` gets no sensor data. Options that need no internet:
+
+| Option | How |
+|---|---|
+| (a) USB + adb (Android) | `adb reverse tcp:8700 tcp:8700`, then open `http://localhost:8700/teleop` on the phone. `localhost` is a secure context. |
+| (b) HTTPS with a self-signed cert | Generate a cert offline (`openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 30 -subj /CN=swarmmind`). Serve the node with uvicorn's `ssl_keyfile` and `ssl_certfile`, which needs those two options passed to `uvicorn.Config` in `agent.py`. Then accept the certificate warning on the phone. |
+| (c) Chrome flag (Android) | In `chrome://flags/#unsafely-treat-insecure-origin-as-secure`, add `http://<node-ip>:8700` and relaunch Chrome. |
+
+iOS Safari also requires `DeviceOrientationEvent.requestPermission()`, called from a user gesture (a button tap) on the page.
 
 ---
 
@@ -437,6 +551,7 @@ Tasks are for discrete commands. Topics are for high-rate, lossy, latest-value-w
 | Resume unfinished jobs | ≤ 1 s after becoming leader | |
 | Handoff gap (`gap_ms`) | detection (≤ 600 ms) + election (≤ ~100 ms) + continuation prefill and first token (backend-dependent; longest on the Pi) | |
 | Task watchdog tick | 50 ms | |
+| Teleop rate / deadman | 30-50 Hz / stop after 300 ms without a sample | |
 | `ui.nodes` push | every 500 ms | |
 | Dashboard reconnect to another node | ≤ 1 s | |
 | Uplink flush attempt | every 5 s (leader) | `uplink_interval` |

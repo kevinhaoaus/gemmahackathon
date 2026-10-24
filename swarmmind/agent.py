@@ -201,6 +201,25 @@ class Node:
             self.election.set_self_health(healthy)
             await asyncio.sleep(self.cfg.health_interval)
 
+    async def _warmup(self) -> None:
+        """Load the model into (V)RAM now and pin it (keep_alive -1). A standby node that loads
+        lazily would add 5-20 s to its first handoff."""
+        if self.backend.name != "ollama":
+            return
+        for attempt in range(30):
+            try:
+                t0 = time.monotonic()
+                r = await self.http.post(f"{self.cfg.ollama_url}/api/generate",
+                                         json={"model": self.cfg.model, "prompt": "", "keep_alive": -1},
+                                         timeout=httpx.Timeout(300.0, connect=2.0))
+                if r.status_code == 200:
+                    log.info("model %s loaded and pinned in %.1f s", self.cfg.model, time.monotonic() - t0)
+                    return
+                log.warning("warm-up got HTTP %d: %s", r.status_code, r.text[:200])
+            except Exception as e:  # noqa: BLE001 - Ollama may still be starting
+                log.warning("warm-up attempt %d failed: %s", attempt + 1, e)
+            await asyncio.sleep(5)
+
     async def _ui_nodes_loop(self) -> None:
         while True:
             await asyncio.sleep(0.5)
@@ -306,6 +325,7 @@ class Node:
                  self.backend.supports_images, self.vision.mode, self.capabilities(), sorted(REGISTRY))
         if missing:
             log.warning("capabilities without handlers: %s", missing)
+        self._modules = loaded
         for mod in loaded:
             if hasattr(mod, "setup"):
                 try:
@@ -316,14 +336,32 @@ class Node:
         app = build_app(self)
         server = uvicorn.Server(uvicorn.Config(app, host=self.cfg.bind_host, port=self.cfg.http_port,
                                                log_level="warning", ws="websockets-sansio", lifespan="off"))
+        servers = [server.serve()]
+        if self.cfg.ssl_certfile and self.cfg.ssl_keyfile:
+            tls = uvicorn.Server(uvicorn.Config(app, host=self.cfg.bind_host, port=self.cfg.https_port,
+                                                log_level="warning", ws="websockets-sansio", lifespan="off",
+                                                ssl_certfile=self.cfg.ssl_certfile,
+                                                ssl_keyfile=self.cfg.ssl_keyfile))
+            servers.append(tls.serve())
+            log.info("HTTPS for phones on :%d (teleop: https://%s:%d/teleop)",
+                     self.cfg.https_port, self.cfg.host_ip, self.cfg.https_port)
         bg = [asyncio.create_task(c) for c in (self.hb.run(), self._membership_loop(), self._health_loop(),
-                                                self._ui_nodes_loop(), self._frame_loop(), self.uplink.run())]
+                                                self._ui_nodes_loop(), self._frame_loop(), self.uplink.run(),
+                                                self._warmup())]
         try:
-            await server.serve()
+            await asyncio.gather(*servers)
         finally:
             for t in bg:
                 t.cancel()
             self.jobs.cancel_all("shutdown")
+            for mod in getattr(self, "_modules", []):
+                if hasattr(mod, "shutdown"):       # e.g. so101: hold position, close the serial port
+                    try:
+                        r = mod.shutdown()
+                        if asyncio.iscoroutine(r):
+                            await r
+                    except Exception:  # noqa: BLE001
+                        log.exception("capability module %s shutdown failed", mod.__name__)
             self.bus.close()
             self.hb.close()
             await self.backend.aclose()

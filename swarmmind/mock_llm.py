@@ -144,6 +144,9 @@ def create_app(model: str, tps: float) -> FastAPI:
         if not model_ok(body.get("model", "")):
             return JSONResponse({"error": f"model '{body.get('model')}' not found"}, 404)
         prompt = body.get("prompt", "") or ""
+        if not prompt:            # real Ollama: empty prompt = just load the model and return
+            return JSONResponse({"model": body.get("model"), "response": "", "done": True,
+                                 "done_reason": "load"})
         if body.get("raw"):
             head, prefix = split_raw_prompt(prompt)
         else:

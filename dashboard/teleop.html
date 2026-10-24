@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d1117">
+<title>SO-101 Teleop</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --line: #30363d; --text: #e6edf3; --dim: #8b949e;
+    --ok: #3fb950; --warn: #d29922; --bad: #f85149; --accent: #2f81f7;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { padding: 12px 16px calc(16px + env(safe-area-inset-bottom)); max-width: 640px; margin: 0 auto;
+    -webkit-user-select: none; user-select: none; overscroll-behavior: none; }
+  h1 { font-size: 18px; margin: 0; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .top { justify-content: space-between; margin-bottom: 10px; }
+  .pill { padding: 4px 10px; border-radius: 999px; font-size: 13px; border: 1px solid var(--line); background: var(--panel); }
+  .pill.ok { color: var(--ok); border-color: var(--ok); }
+  .pill.warn { color: var(--warn); border-color: var(--warn); }
+  .pill.bad { color: var(--bad); border-color: var(--bad); }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin: 10px 0; }
+  .notice { border-color: var(--warn); color: var(--text); font-size: 14px; }
+  .notice b { color: var(--warn); }
+  code { background: #0008; padding: 1px 5px; border-radius: 4px; font-size: 13px; -webkit-user-select: all; user-select: all; }
+  button { font: inherit; color: var(--text); background: #21262d; border: 1px solid var(--line);
+    border-radius: 12px; min-height: 56px; padding: 0 16px; touch-action: manipulation; }
+  button:active { filter: brightness(1.3); }
+  button.on { background: #1f6feb33; border-color: var(--accent); color: #fff; }
+  .grow { flex: 1 1 0; }
+  #stop { background: #da363333; border-color: var(--bad); color: #ffb4ae; font-weight: 700; }
+  #hold { width: 100%; min-height: 150px; font-size: 26px; font-weight: 800; letter-spacing: .04em;
+    border-radius: 20px; border: 3px solid var(--line); background: #21262d; touch-action: none; }
+  #hold.held { background: #238636; border-color: #3fb950; color: #fff; }
+  #hold:disabled { opacity: .45; }
+  label { font-size: 14px; color: var(--dim); }
+  input[type=range] { width: 100%; height: 48px; accent-color: var(--accent); touch-action: none; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 14px; }
+  .kv span:nth-child(odd) { color: var(--dim); }
+  .joint { display: grid; grid-template-columns: 104px 1fr 48px; gap: 8px; align-items: center; font-size: 13px; margin: 5px 0; }
+  .bar { position: relative; height: 14px; background: #0d1117; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+  .bar i { position: absolute; top: 0; bottom: 0; width: 4px; margin-left: -2px; background: var(--accent); }
+  .bar b { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--warn); opacity: .8; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--dim); }
+  .pads { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pad { position: relative; aspect-ratio: 1; background: #0d1117; border: 1px solid var(--line); border-radius: 50%; touch-action: none; }
+  .pad .knob { position: absolute; left: 50%; top: 50%; width: 30%; height: 30%; margin: -15% 0 0 -15%;
+    border-radius: 50%; background: #2f81f755; border: 2px solid var(--accent); pointer-events: none; }
+  .pad .cap { position: absolute; left: 0; right: 0; bottom: -22px; text-align: center; font-size: 12px; color: var(--dim); }
+  .hidden { display: none !important; }
+  .small { font-size: 13px; color: var(--dim); }
+  .estop { color: var(--bad); font-weight: 700; }
+</style>
+</head>
+<body>
+  <div class="row top">
+    <h1>SO-101 teleop</h1>
+    <div class="row">
+      <span id="conn" class="pill bad">offline</span>
+      <span id="rate" class="pill">0 Hz</span>
+    </div>
+  </div>
+
+  <div id="secureNotice" class="panel notice hidden">
+    <b>Motion sensors are blocked:</b> this page is not a secure context (plain http to a LAN IP),
+    so the browser hides DeviceOrientation. Fix either way:
+    <ol style="margin:6px 0 0 18px;padding:0">
+      <li>Android over USB: on the arm host run <code>adb reverse tcp:8700 tcp:8700</code>, then open
+        <code>http://localhost:8700/teleop</code> on the phone (localhost counts as secure).</li>
+      <li>Serve the node over HTTPS (a LAN TLS proxy / self-signed cert accepted on the phone).</li>
+    </ol>
+    Until then, use the on-screen controls below.
+  </div>
+  <div id="sensorNotice" class="panel notice hidden"></div>
+
+  <div class="row">
+    <button id="sensors" class="grow">Enable motion sensors</button>
+    <button id="armed" class="grow">Teleop: OFF</button>
+  </div>
+
+  <div class="panel" style="padding:10px">
+    <button id="hold" disabled>HOLD TO ENABLE</button>
+    <div class="row small" style="justify-content:space-between;margin-top:6px">
+      <span id="holdHint">Turn teleop ON, then hold. Release = arm stops.</span>
+      <span id="orient">α – β – γ –</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <label for="grip">Gripper <span id="gripVal">0.50</span> (0 = closed, 1 = open)</label>
+    <input id="grip" type="range" min="0" max="1" step="0.01" value="0.5">
+  </div>
+
+  <div id="virtualPanel" class="panel hidden">
+    <div class="row" style="justify-content:space-between;margin-bottom:8px">
+      <span class="small">On-screen controls (move while holding the deadman)</span>
+    </div>
+    <div class="pads">
+      <div class="pad" id="padL"><div class="knob"></div><div class="cap">pan ↔ · lift/elbow ↕</div></div>
+      <div class="pad" id="padR"><div class="knob"></div><div class="cap">wrist roll ↔</div></div>
+    </div>
+    <div style="height:26px"></div>
+  </div>
+
+  <div class="row">
+    <button id="virtualBtn" class="grow">On-screen controls</button>
+    <button id="stop" class="grow">STOP ARM</button>
+  </div>
+
+  <div class="panel">
+    <div class="kv" style="margin-bottom:8px">
+      <span>mode</span><span id="mode">–</span>
+      <span>e-stop</span><span id="estop">–</span>
+      <span>driver</span><span id="driver">–</span>
+      <span>control</span><span id="owner">–</span>
+      <span>telemetry</span><span id="telem">–</span>
+    </div>
+    <div id="joints"></div>
+  </div>
+  <p class="small">Node: <span id="hostName"></span> · client <span id="clientId"></span></p>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const JOINTS = ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll", "gripper"];
+  const SOURCE = (() => {
+    try {
+      let s = sessionStorage.getItem("so101.source");
+      if (!s) { s = "phone-" + Math.random().toString(36).slice(2, 8); sessionStorage.setItem("so101.source", s); }
+      return s;
+    } catch (e) { return "phone-" + Math.random().toString(36).slice(2, 8); }
+  })();
+  $("clientId").textContent = SOURCE;
+  $("hostName").textContent = location.host || "(file)";
+
+  // ---------------------------------------------------------------- state
+  const st = {
+    ws: null, connected: false, backoff: 500,
+    armed: false, held: false,
+    orient: { alpha: 0, beta: 0, gamma: 0 }, sensorEvents: 0, sensorsLive: false,
+    virtual: false, virt: { alpha: 0, beta: 0, gamma: 0 },
+    pads: { L: { x: 0, y: 0 }, R: { x: 0, y: 0 } },
+    sent: 0, rate: 0, lastState: 0, releaseBurst: 0, lastIdleSend: 0,
+  };
+
+  // ---------------------------------------------------------------- websocket
+  function connect() {
+    const proto = location.protocol === "https:" ? "wss:" : "ws:";
+    const host = location.host || "localhost:8700";
+    let ws;
+    try { ws = new WebSocket(`${proto}//${host}/ws/topics?sub=arm.so101`); }
+    catch (e) { scheduleReconnect(); return; }
+    st.ws = ws;
+    setConn("connecting", "warn");
+    ws.onopen = () => { st.connected = true; st.backoff = 500; setConn("connected", "ok"); };
+    ws.onmessage = (ev) => {
+      let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+      if (m && m.topic === "arm.so101.state" && m.data) renderState(m.data, m.origin);
+    };
+    ws.onclose = () => { st.connected = false; st.ws = null; setConn("offline", "bad"); scheduleReconnect(); };
+    ws.onerror = () => { try { ws.close(); } catch (e) {} };
+  }
+  function scheduleReconnect() {
+    setTimeout(connect, st.backoff);
+    st.backoff = Math.min(st.backoff * 2, 4000);
+  }
+  function setConn(text, cls) { const c = $("conn"); c.textContent = text; c.className = "pill " + cls; }
+  function send(obj) {
+    if (st.ws && st.ws.readyState === 1 && st.ws.bufferedAmount < 16384) {
+      st.ws.send(JSON.stringify(obj)); return true;
+    }
+    return false;
+  }
+
+  // ---------------------------------------------------------------- sensors
+  const hasDO = typeof window.DeviceOrientationEvent !== "undefined";
+  if (!window.isSecureContext) $("secureNotice").classList.remove("hidden");
+
+  function onOrientation(e) {
+    if (e.alpha == null && e.beta == null && e.gamma == null) return;
+    st.orient.alpha = e.alpha || 0; st.orient.beta = e.beta || 0; st.orient.gamma = e.gamma || 0;
+    st.sensorEvents++;
+    if (!st.sensorsLive) { st.sensorsLive = true; $("sensors").textContent = "Motion sensors: ON"; $("sensors").classList.add("on"); hideSensorNotice(); }
+  }
+  function sensorNotice(html) { const n = $("sensorNotice"); n.innerHTML = html; n.classList.remove("hidden"); }
+  function hideSensorNotice() { $("sensorNotice").classList.add("hidden"); }
+
+  async function enableSensors() {
+    if (!hasDO) { sensorNotice("<b>No DeviceOrientation in this browser.</b> Using on-screen controls."); setVirtual(true); return; }
+    if (!window.isSecureContext) { setVirtual(true); return; }   // notice already shown
+    try {
+      if (typeof DeviceOrientationEvent.requestPermission === "function") {   // iOS 13+: needs a user gesture
+        const r = await DeviceOrientationEvent.requestPermission();
+        if (r !== "granted") { sensorNotice("<b>Motion permission denied.</b> Allow Motion &amp; Orientation access (Safari: aA menu → Website Settings) and tap again."); setVirtual(true); return; }
+      }
+    } catch (e) { sensorNotice("<b>Motion permission failed:</b> " + String(e && e.message || e)); setVirtual(true); return; }
+    window.addEventListener("deviceorientation", onOrientation);
+    $("sensors").textContent = "Waiting for sensors…";
+    setTimeout(() => {
+      if (!st.sensorsLive) {
+        sensorNotice("<b>No orientation data received.</b> This device may have no gyroscope, or the browser blocks it. Using on-screen controls.");
+        setVirtual(true);
+      }
+    }, 1500);
+  }
+  $("sensors").addEventListener("click", enableSensors);
+  if (!hasDO) setVirtual(true);
+
+  // ---------------------------------------------------------------- virtual joysticks
+  function setVirtual(on) {
+    st.virtual = on;
+    $("virtualPanel").classList.toggle("hidden", !on);
+    $("virtualBtn").classList.toggle("on", on);
+    $("virtualBtn").textContent = on ? "On-screen controls: ON" : "On-screen controls";
+  }
+  $("virtualBtn").addEventListener("click", () => setVirtual(!st.virtual));
+
+  function bindPad(el, key) {
+    const knob = el.querySelector(".knob");
+    let pid = null;
+    const update = (e) => {
+      const r = el.getBoundingClientRect();
+      let x = ((e.clientX - r.left) / r.width) * 2 - 1, y = ((e.clientY - r.top) / r.height) * 2 - 1;
+      const m = Math.hypot(x, y); if (m > 1) { x /= m; y /= m; }
+      st.pads[key] = { x, y };
+      knob.style.transform = `translate(${x * 117}%, ${y * 117}%)`;
+    };
+    const end = () => { pid = null; st.pads[key] = { x: 0, y: 0 }; knob.style.transform = ""; };
+    el.addEventListener("pointerdown", (e) => { pid = e.pointerId; el.setPointerCapture(pid); update(e); e.preventDefault(); });
+    el.addEventListener("pointermove", (e) => { if (e.pointerId === pid) update(e); });
+    el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end); el.addEventListener("lostpointercapture", end);
+  }
+  bindPad($("padL"), "L"); bindPad($("padR"), "R");
+  const DEADZONE = 0.12, VIRT_DEG_S = 60;
+  const dz = (v) => Math.abs(v) < DEADZONE ? 0 : (v - Math.sign(v) * DEADZONE) / (1 - DEADZONE);
+
+  // ---------------------------------------------------------------- armed toggle + deadman
+  function setArmed(on) {
+    st.armed = on;
+    $("armed").textContent = on ? "Teleop: ON" : "Teleop: OFF";
+    $("armed").classList.toggle("on", on);
+    $("hold").disabled = !on;
+    if (!on) { setHeld(false); for (let i = 0; i < 3; i++) send(sample(false, false)); }
+  }
+  $("armed").addEventListener("click", () => setArmed(!st.armed));
+
+  const hold = $("hold");
+  let holdPointer = null;
+  function setHeld(on) {
+    if (st.held === on) return;
+    st.held = on;
+    hold.classList.toggle("held", on);
+    hold.textContent = on ? "ENABLED – MOVING" : "HOLD TO ENABLE";
+    if (on) { st.virt = { alpha: 0, beta: 0, gamma: 0 }; if (navigator.vibrate) navigator.vibrate(20); }
+    else { st.releaseBurst = 3; }
+  }
+  hold.addEventListener("pointerdown", (e) => {
+    if (!st.armed) return;
+    holdPointer = e.pointerId;
+    try { hold.setPointerCapture(e.pointerId); } catch (err) {}
+    setHeld(true); e.preventDefault();
+  });
+  const release = (e) => { if (e && holdPointer !== null && e.pointerId !== holdPointer) return; holdPointer = null; setHeld(false); };
+  hold.addEventListener("pointerup", release);
+  hold.addEventListener("pointercancel", release);
+  hold.addEventListener("lostpointercapture", release);
+  hold.addEventListener("contextmenu", (e) => e.preventDefault());
+  document.addEventListener("visibilitychange", () => { if (document.hidden) { holdPointer = null; setHeld(false); } });
+  window.addEventListener("blur", () => { holdPointer = null; setHeld(false); });
+
+  const grip = $("grip");
+  grip.addEventListener("input", () => { $("gripVal").textContent = Number(grip.value).toFixed(2); });
+
+  // ---------------------------------------------------------------- stop button
+  $("stop").addEventListener("click", async () => {
+    setHeld(false);
+    for (let i = 0; i < 3; i++) send(sample(st.armed, false));
+    try {
+      await fetch("/task", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ capability: "arm.so101", args: { action: "stop" } }) });
+    } catch (e) {}
+  });
+
+  // ---------------------------------------------------------------- publish loop (30 Hz)
+  function angles() { return st.virtual ? st.virt : st.orient; }
+  function sample(enabled, deadman) {
+    const a = angles();
+    return { topic: "teleop.so101", data: {
+      alpha: +a.alpha.toFixed(2), beta: +a.beta.toFixed(2), gamma: +a.gamma.toFixed(2),
+      grip: Number(grip.value), enabled, deadman, source: SOURCE } };
+  }
+  let lastTick = performance.now();
+  setInterval(() => {
+    const now = performance.now(), dt = Math.min(0.1, (now - lastTick) / 1000); lastTick = now;
+    if (st.virtual && st.held) {
+      st.virt.alpha += dz(st.pads.L.x) * VIRT_DEG_S * dt;
+      st.virt.beta += -dz(st.pads.L.y) * VIRT_DEG_S * dt;
+      st.virt.gamma += dz(st.pads.R.x) * VIRT_DEG_S * dt;
+    }
+    const a = angles();
+    $("orient").textContent = `α ${a.alpha.toFixed(0)} β ${a.beta.toFixed(0)} γ ${a.gamma.toFixed(0)}`;
+    if (st.held && st.armed) {
+      if (send(sample(true, true))) st.sent++;
+    } else if (st.releaseBurst > 0) {
+      st.releaseBurst--; send(sample(st.armed, false));
+    } else if (st.armed && now - st.lastIdleSend > 500) {   // 2 Hz presence: keeps our control latch
+      st.lastIdleSend = now; send(sample(true, false));
+    }
+  }, 1000 / 30);
+  setInterval(() => {
+    st.rate = st.sent; st.sent = 0;
+    const r = $("rate"); r.textContent = `${st.rate} Hz` + (st.sensorsLive ? ` · imu ${st.sensorEvents}/s` : "");
+    r.className = "pill " + (st.held ? (st.rate >= 20 ? "ok" : "warn") : "");
+    st.sensorEvents = 0;
+    const age = (Date.now() - st.lastState) / 1000;
+    $("telem").textContent = st.lastState ? (age < 1.5 ? "live" : `stale ${age.toFixed(0)} s`) : "none yet";
+  }, 1000);
+
+  // ---------------------------------------------------------------- arm state
+  const jointsEl = $("joints"), rows = {};
+  for (const j of JOINTS) {
+    const row = document.createElement("div"); row.className = "joint";
+    row.innerHTML = `<span>${j}</span><div class="bar"><b></b><i></i></div><span class="num">–</span>`;
+    jointsEl.appendChild(row);
+    rows[j] = { pos: row.querySelector("i"), tgt: row.querySelector("b"), num: row.querySelector(".num") };
+  }
+  function renderState(s, origin) {
+    st.lastState = Date.now();
+    $("mode").textContent = s.mode || "–";
+    $("estop").innerHTML = s.estop ? `<span class="estop">YES</span> ${esc(s.estop_reason || "")}` : "no";
+    $("driver").textContent = (s.driver || "–") + (origin ? ` @ ${origin}` : "") + (s.fault ? ` · FAULT ${s.fault}` : "");
+    const owner = s.teleop_source;
+    $("owner").textContent = !owner ? "free" : (owner.endsWith("/" + SOURCE) ? "you" + (s.teleop_active ? " (moving)" : " (holding)") : owner);
+    const hint = $("holdHint");
+    if (owner && !owner.endsWith("/" + SOURCE)) hint.textContent = "Another operator has control.";
+    else if (s.mode === "task") hint.textContent = "A task is running; holding takes over and aborts it.";
+    else hint.textContent = st.armed ? "Hold to move. Release = arm stops." : "Turn teleop ON, then hold. Release = arm stops.";
+    const lim = s.limits || {};
+    for (const j of JOINTS) {
+      const v = (s.joints || {})[j], t = (s.targets || {})[j], L = lim[j] || [0, 4095];
+      const span = Math.max(1, L[1] - L[0]);
+      const pct = (x) => Math.max(0, Math.min(100, ((x - L[0]) / span) * 100)) + "%";
+      if (v != null) { rows[j].pos.style.left = pct(v); rows[j].num.textContent = v; }
+      if (t != null) rows[j].tgt.style.left = pct(t);
+    }
+  }
+  function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+  connect();
+})();
+</script>
+</body>
+</html>

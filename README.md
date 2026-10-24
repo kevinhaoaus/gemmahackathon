@@ -6,7 +6,7 @@ Offline swarm of heterogeneous machines on one LAN that runs Gemma 4 and drives 
 
 | Node | Rank | LLM runtime → model | Vision |
 |---|---|---|---|
-| Jetson AGX Thor | 200 | Ollama → `gemma4:31b` | native (image in prompt) |
+| Jetson AGX Thor | 200 | Ollama → `gemma4:e4b` (copied over LAN) | native (image in prompt) |
 | Lenovo Legion 5i, RTX 4070 | 100 | Ollama → `gemma4:e4b` | native |
 | MacBook Airs | 60–80 | Ollama (Metal) → `gemma4:e4b` | native |
 | Raspberry Pi 5 | 50 | LiteRT-LM → `gemma-4-E4B-it.litertlm` | Coral EdgeTPU → TFLite CPU → none |
@@ -56,7 +56,7 @@ A node lists `capabilities: ["arm.so101"]` in its YAML and advertises it in its 
 
 ## Other modules
 
-`inference.py` (Ollama / LiteRT / null backends, `/api/chat` with `think:false` and images) · `vision.py` (phone `shot.jpg`, `file:`, `mock:` → detector fallback chain) · `uplink.py` (leader flushes the JSONL report queue to LAN sinks, `scripts/uplink_sink.py`, deduped by `job_id`) · `dashboard/index.html` (served by every node; reconnects to any alive peer within 1 s) · `mock_llm.py` (fake Ollama for the simulator).
+`inference.py` (Ollama / LiteRT / null backends, `/api/chat` with `think:false` and images) · `vision.py` (camera: phone `shot.jpg`, USB webcam `usb:0`, `file:`, `mock:`; detector fallback chain) · `uplink.py` (leader flushes the JSONL report queue to LAN sinks, `scripts/uplink_sink.py`, deduped by `job_id`) · `dashboard/index.html` (served by every node; reconnects to any alive peer within 1 s) · `mock_llm.py` (fake Ollama for the simulator).
 
 ## Run
 
@@ -66,7 +66,9 @@ A node lists `capabilities: ["arm.so101"]` in its YAML and advertises it in its 
 python -m swarmmind.agent --config configs/laptop.yaml  # a real node; dashboard at http://<node>:8700/
 ```
 
-Setup, demo script and troubleshooting are in `docs/SETUP.md`.
+Setup, demo script and troubleshooting: `docs/SETUP.md`. Jetson Thor walkthrough: `docs/JETSON_AGX_THOR.md`. Wire spec: `docs/PROTOCOL.md`.
+
+Every Ollama node loads and pins its model at startup (`keep_alive: -1`), so a standby never pays a model load during handoff. Phones need HTTPS for IMU access: set `ssl_certfile`/`ssl_keyfile` for an extra listener on `:8443`.
 
 ## Measured (this repo, Windows)
 

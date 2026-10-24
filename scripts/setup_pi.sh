@@ -2,7 +2,7 @@
 # SwarmMind setup for Raspberry Pi 5 (Raspberry Pi OS Bookworm, 64-bit, Python 3.11).
 # Also usable on other aarch64/x86_64 Linux nodes, e.g. a Jetson AGX Thor (Ubuntu/JetPack):
 #   scripts/setup_pi.sh --config configs/thor.yaml --requirements requirements.txt --no-coral
-# (Jetson: Ollama runs natively with CUDA; import the model over the LAN, see README.)
+# (Jetson: Ollama runs natively with CUDA; import the model over the LAN, see docs/SETUP.md.)
 #
 # Everything SwarmMind runs is on-device. This script NEVER downloads a model from the
 # internet: models are copied from the laptop over the LAN (scp) or from a local/USB path.
@@ -265,9 +265,10 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
     warn "  - $f"
     if [[ "$f" == "$LLM_MODEL" ]]; then LLM_MISSING=1; fi
   done
-  cat >&2 <<EOF
-
-How to get them onto the Pi (LAN or USB only, no internet download):
+  echo >&2
+  echo "How to get them onto this node (LAN or USB only, no internet download):" >&2
+  if [[ $LLM_MISSING -eq 1 ]]; then
+    cat >&2 <<EOF
 
   $LLM_MODEL  (required for backend: litert)
     From the laptop, push it (Windows has scp built in), in PowerShell:
@@ -275,6 +276,9 @@ How to get them onto the Pi (LAN or USB only, no internet download):
     Or pull it from the Pi (needs "OpenSSH Server" enabled on the laptop):
       scripts/setup_pi.sh --from USER@LAPTOP_IP:/C:/Users/Default.DESKTOP-NUBLEQ1/Desktop/GemmaHackathonOld/GemmaHackathonBasic/models/gemma-4-E4B-it-litert-lm
     Or from a USB stick: scripts/setup_pi.sh --from /media/$SERVICE_USER/<stick>/models
+EOF
+  fi
+  cat >&2 <<EOF
 
   $CORAL_MODEL, $CPU_MODEL, $LABELS  (optional; vision)
     These are the standard Coral SSD MobileNet v2 COCO detection files. Stage them on a

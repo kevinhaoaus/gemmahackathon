@@ -114,7 +114,8 @@ class TaskManager:
         if capability in n.capabilities():
             out.append((n.cfg.rank, -busy.get(n.cfg.node_id, 0), n.cfg.node_id))
         for nid, ps in n.election.alive_peers().items():
-            if capability in ps.hb.capabilities and ps.hb.healthy:
+            # LLM health only matters for llm.* work; an arm host with no LLM is still a valid executor
+            if capability in ps.hb.capabilities and (ps.hb.healthy or not capability.startswith("llm.")):
                 out.append((ps.hb.rank, -busy.get(nid, 0), nid))
         return sorted(out, reverse=True)
 
@@ -192,6 +193,9 @@ class TaskManager:
         except asyncio.CancelledError:
             log.info("task %s cancelled locally", task.task_id)
             raise
+        except (ValueError, PermissionError, RuntimeError) as e:   # expected refusals: one line
+            log.warning("task %s refused: %s", task.task_id, e)
+            self._report(task, error=f"{type(e).__name__}: {e}")
         except Exception as e:  # noqa: BLE001
             log.exception("task %s handler failed", task.task_id)
             self._report(task, error=f"{type(e).__name__}: {e}")

@@ -38,19 +38,30 @@ def parse_peer(entry: str, default_udp: int) -> tuple[str, int, int]:
 
 # --------------------------------------------------------------------------- UDP heartbeats
 class _UdpProto(asyncio.DatagramProtocol):
-    def __init__(self, on_datagram: Callable[[bytes, tuple], None]):
+    def __init__(self, on_datagram: Callable[[bytes, tuple], None], on_lost: Callable[[], None]):
         self.on_datagram = on_datagram
+        self.on_lost = on_lost
 
     def datagram_received(self, data: bytes, addr: tuple) -> None:
         self.on_datagram(data, addr)
 
     def error_received(self, exc: Exception) -> None:
-        # Windows reports ICMP port-unreachable for dead static peers here; harmless.
         pass
+
+    def connection_lost(self, exc: Exception | None) -> None:
+        self.on_lost()
 
 
 class HeartbeatChannel:
-    """Sends our heartbeat every interval (broadcast + unicast) and reports received ones."""
+    """Sends our heartbeat every interval (broadcast + unicast) and reports received ones.
+
+    Receive and send use SEPARATE sockets. On Windows, a datagram sent to a dead peer's port
+    comes back as ICMP port-unreachable, which Windows reports as WSAECONNRESET on the socket
+    that sent it; asyncio's Proactor UDP transport then stops reading, and the node goes deaf
+    to every heartbeat. The listening socket therefore never sends, and sends go through a
+    plain non-blocking socket whose errors are simply ignored. If the listener is ever lost
+    anyway, run() re-binds it.
+    """
 
     def __init__(self, cfg: NodeConfig, make_hb: Callable[[], Heartbeat],
                  on_hb: Callable[[Heartbeat, tuple], None]):
@@ -58,6 +69,7 @@ class HeartbeatChannel:
         self.make_hb = make_hb
         self.on_hb = on_hb
         self.transport: asyncio.DatagramTransport | None = None
+        self.send_sock: socket.socket | None = None
         self.targets: list[tuple[str, int]] = []
         for p in cfg.static_peers:
             host, _, udp = parse_peer(p, cfg.udp_port)
@@ -65,8 +77,18 @@ class HeartbeatChannel:
         if cfg.broadcast_addr:
             self.targets.append((cfg.broadcast_addr, cfg.udp_port))
         self._kick = asyncio.Event()
+        self._lost = False
+        self._closing = False
 
     async def start(self) -> None:
+        await self._bind_listener()
+        self.send_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.send_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        self.send_sock.setblocking(False)
+        log.info("udp heartbeat on :%d -> %s", self.cfg.udp_port,
+                 ", ".join(f"{h}:{p}" for h, p in self.targets) or "(no targets)")
+
+    async def _bind_listener(self) -> None:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         if os.name != "nt":
             # Linux: allow quick restarts. Windows: SO_REUSEADDR lets two processes share the
@@ -79,10 +101,13 @@ class HeartbeatChannel:
         sock.bind((bind_host, self.cfg.udp_port))
         sock.setblocking(False)
         loop = asyncio.get_running_loop()
+        self._lost = False
         self.transport, _ = await loop.create_datagram_endpoint(
-            lambda: _UdpProto(self._on_datagram), sock=sock)
-        log.info("udp heartbeat on :%d -> %s", self.cfg.udp_port,
-                 ", ".join(f"{h}:{p}" for h, p in self.targets) or "(no targets)")
+            lambda: _UdpProto(self._on_datagram, self._on_lost), sock=sock)
+
+    def _on_lost(self) -> None:
+        if not self._closing:
+            self._lost = True
 
     def kick(self) -> None:
         """Send a heartbeat right now (used on leadership change)."""
@@ -90,6 +115,12 @@ class HeartbeatChannel:
 
     async def run(self) -> None:
         while True:
+            if self._lost:
+                log.warning("udp listener lost; re-binding :%d", self.cfg.udp_port)
+                try:
+                    await self._bind_listener()
+                except OSError as e:
+                    log.warning("udp re-bind failed: %s", e)
             self._send_once()
             try:
                 await asyncio.wait_for(self._kick.wait(), self.cfg.heartbeat_interval)
@@ -98,14 +129,14 @@ class HeartbeatChannel:
             self._kick.clear()
 
     def _send_once(self) -> None:
-        if not self.transport:
+        if not self.send_sock:
             return
         data = self.make_hb().to_bytes()
         for target in self.targets:
             try:
-                self.transport.sendto(data, target)
+                self.send_sock.sendto(data, target)
             except OSError:
-                pass   # network down / unreachable: keep trying next tick
+                pass   # unreachable peer / network down / buffer full: try again next tick
 
     def _on_datagram(self, data: bytes, addr: tuple) -> None:
         try:
@@ -117,8 +148,11 @@ class HeartbeatChannel:
         self.on_hb(hb, addr)
 
     def close(self) -> None:
+        self._closing = True
         if self.transport:
             self.transport.close()
+        if self.send_sock:
+            self.send_sock.close()
 
 
 # --------------------------------------------------------------------------- peer bus

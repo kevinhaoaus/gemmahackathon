@@ -28,6 +28,11 @@ class NodeConfig:
     host_ip: str = ""
     http_port: int = 8700
     bind_host: str = "0.0.0.0"
+    # optional extra HTTPS listener for phones (browsers only expose IMU/DeviceOrientation to secure
+    # pages). Peers keep using plain http_port. Self-signed cert is fine.
+    https_port: int = 8443
+    ssl_certfile: str = ""
+    ssl_keyfile: str = ""
     # inference
     backend: str = "ollama"              # ollama | litert | none
     ollama_url: str = "http://127.0.0.1:11434"

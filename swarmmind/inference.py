@@ -187,14 +187,14 @@ class OllamaBackend(LLMBackend):
             umsg["images"] = [image_b64]
         msgs = ([{"role": "system", "content": system}] if system else []) + [umsg]
         payload = {"model": self.model, "messages": msgs, "stream": True, "think": False,
-                   "keep_alive": "30m", "options": {"num_predict": self.cfg.num_predict}}
+                   "keep_alive": -1, "options": {"num_predict": self.cfg.num_predict}}
         async for piece in self._stream("/api/chat", payload,
                                         lambda o: (o.get("message") or {}).get("content", "")):
             yield piece
 
     async def stream_continue(self, system: str, user: str, prefix: str) -> AsyncIterator[str]:
         payload = {"model": self.model, "prompt": build_gemma_prompt(system, user, prefix, self.model),
-                   "raw": True, "stream": True, "keep_alive": "30m",
+                   "raw": True, "stream": True, "keep_alive": -1,
                    "options": {"num_predict": self.cfg.num_predict}}
         async for piece in self._stream("/api/generate", payload, lambda o: o.get("response", "")):
             yield piece
