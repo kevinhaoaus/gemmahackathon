@@ -2,7 +2,36 @@
 
 Offline swarm of heterogeneous machines on one LAN that runs Gemma 4 and drives robots. Any node can die mid-answer and another finishes the same sentence. No cloud, no internet.
 
-> **Now: "robot building robot."** The demo is moving from wildfire Q&A to an assembly cell. A large arm (model TBD, pluggable driver) places a servo into an SO-101, located by a Logitech Brio webcam and AprilTags. Gemma plans the steps and checks the result on every node, and the cell keeps building if a computer dies. The swarm layer is unchanged. Built and tested in the simulator (real Gemma plans and verifies): a robot-cell system prompt, AprilTag perception (pixels → arm coordinates), a planner (Gemma JSON → checked arm tasks, resumes on failover), pluggable large-arm drivers (mock/Kinova/xArm/UR/SO-101) and a dashboard Cell panel. See [docs/ROBOT_CELL.md](docs/ROBOT_CELL.md).
+> **Now: LabMate, a research-assistant arm.** A Seeed reBot B601 (USB2CAN on COM5) and an overhead webcam (AC310, AprilTags) both plug into the Windows Legion. Gemma 4 finds items (springs, screwdrivers, files, superglue), clears hazards into a safe tray, works out which experiment the setup is for and which tools are missing, and fetches items. The Thor is the brain; the swarm keeps going if a computer or an arm dies. See [docs/LABMATE.md](docs/LABMATE.md). Earlier pivots: [docs/ROBOT_CELL.md](docs/ROBOT_CELL.md).
+
+## Test plan (real hardware, Windows Legion)
+
+Fastest route to a real pick-and-place is steps 1–7; everything else can wait. Details: [docs/BENCH.md](docs/BENCH.md).
+
+**Before you touch the arm:** 24 V supply on, area clear, a hand on the power switch. Ctrl-C / `disable` turns torque off, so **the arm drops**: support it first. `stop` / SPACE holds position.
+
+| # | Command (from the repo root) | Pass when |
+|---|---|---|
+| 0 | `.venv\Scripts\pip install motorbridge` | installs (needs internet once; it's the reBot SDK, not a model) |
+| 1 | `.venv\Scripts\python scriptsench.py cam` | ~26 fps, tags 0–3 green, **CALIBRATED** < 2 px. Click a spot and its x/y in cm matches a ruler from tag 0 (x toward tag 3, y toward tag 1). Clear the table, press `b`, then put an object down: it gets a number. `q` quits |
+| 2 | `.venv\Scripts\python scriptsench.py arm-read` | **read-only**: prints every motor's position, velocity and temperature with no errors. Nothing moves. If it fails: power, COM port, baud (see BENCH.md) |
+| 3 | `.venv\Scripts\python scriptsench.py arm-jog` | type `ENABLE`; `j1 +5` … `j6 +5` each move the expected joint the expected way (note any reversed joint); `home` works; `stop` holds; `disable` (support the arm) |
+| 4 | in arm-jog: `grip set-open`, `grip set-closed` | the gripper's open/closed angles are saved; `grip open` / `grip close` work |
+| 5 | `.venv\Scripts\python scriptsench.py calib-base` | jog the gripper tip onto ≥ 3 tag centres (`touch 0`, `touch 1`, `touch 3`), then `solve`: **RMS residual < 5 mm**. Paste the printed `base: [...]` into `configs/laptop.yaml` → `arm.cell.base` |
+| 6 | `.venv\Scripts\python scriptsench.py pick --dry-run` | click an object, then a destination: the plan is drawn on the image, arm targets are printed, and it reports reachable. Nothing moves |
+| 7 | `.venv\Scripts\python scriptsench.py pick --height 0.02 --approach 0.08` | press `y`: the arm goes above the object, descends slowly, grips, lifts, carries, places, retreats. SPACE stops at any time. Start with something light and grippable (a marker), then a screwdriver / spring |
+
+**After pick-and-place works, test the full system:**
+
+| # | Command | Pass when |
+|---|---|---|
+| 8 | `.venv\Scripts\python -m swarmmind.agent --config configs/legion_camera.yaml`, then open http://127.0.0.1:8700/ | camera-only node (never opens COM5): Cell panel shows the annotated live view and CALIBRATED; Ask "what's on the bench?" and Gemma 4 describes the live frame |
+| 9 | same, with `configs/laptop.yaml` (camera **and** arm) | the node advertises `arm.cell` while the reBot is connected; unplug the USB and it disappears from the dashboard within ~2 s, replug and it's back |
+| 10 | LabMate panel → **Inspect bench** (table with an open superglue, a screwdriver, a spring, a file) | items are labelled; the open superglue is announced, a 5 s cancel countdown runs, then it's moved to the safe tray (tag 10); the experiment and missing tools are listed; the question appears. Answer it and the report streams |
+| 11 | LabMate → **Fetch** "screwdriver" | the screwdriver is brought to the handover spot (tag 11) |
+| 12 | Thor joins (`docs/JETSON_AGX_THOR.md`), then pull the Thor's Ethernet mid-task | Thor leads while alive; on pull, the Legion takes over within ~1 s and the arm finishes the task (the arm and camera are on the Legion) |
+
+**Not hardware-tested yet:** the reBot driver (joint signs/offsets assumed to match the URDF; verify in step 3), the SO-101 backup arm, LabMate end to end (one simulator e2e test still fails). Simulator-only tests: `.venv\Scripts\python -m pytest -q tests`.
 
 ## Nodes
 

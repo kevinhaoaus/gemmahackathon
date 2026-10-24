@@ -1,0 +1,181 @@
+# Legion, CAMERA ONLY (generated from laptop.yaml; arm.cell removed so COM5 is never opened).
+# Use this to test the live AC310 camera, AprilTag calibration, object finding and real Gemma
+# vision before the reBot has passed `scripts/bench.py arm-read`.
+# Run: .venv\Scripts\python -m swarmmind.agent --config configs/legion_camera.yaml
+node_id: legion
+rank: 100
+host_ip: ''
+http_port: 8700
+bind_host: 0.0.0.0
+backend: ollama
+ollama_url: http://127.0.0.1:11434
+model: gemma4:e4b
+litert_model_path: ''
+litert_backend: cpu
+model_supports_images: true
+num_predict: 512
+vision_mode: native
+detector_model: ''
+detector_model_cpu: ''
+detector_labels: ''
+camera_url: usb:1?w=1920&h=1080
+static_peers:
+- 192.168.1.30:8700
+- 192.168.1.40:8700
+- 192.168.1.41:8700
+- 192.168.1.42:8700
+udp_port: 50000
+broadcast_addr: 255.255.255.255
+heartbeat_interval: 0.2
+peer_timeout: 0.6
+health_interval: 0.5
+health_window: 2.0
+takeover_stable_s: 3.0
+startup_grace_s: 1.0
+capabilities:
+- vision.cell
+capability_config:
+  vision.cell:
+    source: node
+    rate_hz: 2
+  cell:
+    tag_size_m: 0.05
+    table_tags:
+      0:
+      - 0.0
+      - 0.0
+      - -90.0
+      3:
+      - 0.458
+      - 0.0
+      - -90.0
+      1:
+      - 0.0
+      - 0.585
+      - -90.0
+      2:
+      - 0.458
+      - 0.585
+      - -90.0
+    objects:
+      safe_tray:
+        tag: 10
+        kind: fixture
+        offset:
+        - 0.07
+        - 0.0
+        - 0.0
+      handover:
+        tag: 11
+        kind: fixture
+        offset:
+        - 0.07
+        - 0.0
+        - 0.0
+    catalog:
+      items:
+        screwdriver:
+          kind: tool
+          height: 0.012
+          grasp: across
+        file:
+          kind: tool
+          height: 0.008
+          grasp: across
+        spring:
+          kind: part
+          height: 0.01
+          grasp: center
+        superglue:
+          kind: consumable
+          height: 0.06
+          grasp: center
+        stepper_motor:
+          kind: part
+          height: 0.03
+          grasp: center
+        motor_driver:
+          kind: part
+          height: 0.015
+          grasp: center
+        power_supply:
+          kind: equipment
+          height: 0.05
+          grasp: none
+        multimeter:
+          kind: tool
+          height: 0.03
+          grasp: center
+        ruler:
+          kind: tool
+          height: 0.003
+          grasp: across
+        stand:
+          kind: equipment
+          height: 0.2
+          grasp: none
+      hazards:
+        open_container:
+          movable: true
+          severity: 3
+          fix: cap it and move it away from electronics
+        item_near_edge:
+          movable: true
+          severity: 2
+          fix: move it back from the bench edge
+        sharp_tool_loose:
+          movable: true
+          severity: 2
+          fix: store the tool, tip away from people
+        clutter_in_path:
+          movable: true
+          severity: 1
+          fix: clear the arm's working area
+        cable_near_motion:
+          movable: false
+          severity: 3
+          fix: route the cable away from moving parts
+        hot_tool:
+          movable: false
+          severity: 4
+          fix: let it cool on its stand; do not touch
+        spill:
+          movable: false
+          severity: 4
+          fix: stop and clean the spill before power-on
+      use_cases:
+        spring_pendulum:
+          title: Spring pendulum
+          needs:
+          - spring
+          - stand
+          - ruler
+          optional:
+          - multimeter
+        stepper_test:
+          title: Stepper motor test
+          needs:
+          - stepper_motor
+          - motor_driver
+          - power_supply
+          - screwdriver
+          optional:
+          - multimeter
+        deburring:
+          title: Filing / deburring
+          needs:
+          - file
+          optional:
+          - screwdriver
+    labmate:
+      confirm_s: 5.0
+      pass_gap_s: 1.0
+      label_max_age_s: 10.0
+      tray_radius_m: 0.06
+      slot_m: 0.035
+      min_use_case_score: 0.5
+uplink_urls:
+- http://192.168.1.36:8800/reports
+uplink_interval: 5.0
+data_dir: data
+log_level: INFO

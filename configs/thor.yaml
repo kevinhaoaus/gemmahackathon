@@ -49,8 +49,10 @@ capability_config:   # per-capability settings, e.g. {"arm.so101": {"port": "/de
   # robot cell / LabMate layout (docs/ROBOT_CELL.md, docs/LABMATE.md): IDENTICAL on every node, so any
   # leader can run LabMate. Measure tag_size_m and table_tags on the real bench (metres, table frame).
   cell:
-    tag_size_m: 0.04                   # printed black-square edge length
-    table_tags: {0: [0.0, 0.0], 1: [0.60, 0.0], 2: [0.60, 0.40], 3: [0.0, 0.40]}   # bench corners, id: [x, y]
+    tag_size_m: 0.05                   # black square, measured 5.0 cm (image-inferred 4.96 cm)
+    # real bench: rectangle 25 x 20 in between OUTSIDE corners, tags 5 cm -> centres 0.585 x 0.458 m.
+    # Right-handed, seen from above: origin tag 0, x toward tag 3, y toward tag 1. Tags lie rotated (yaw -90).
+    table_tags: {0: [0.0, 0.0, -90.0], 3: [0.458, 0.0, -90.0], 1: [0.0, 0.585, -90.0], 2: [0.458, 0.585, -90.0]}
     objects:
       # The printed sheet has only tags 0-3 (bench corners), 10 and 11 (plus loose copies of 0 and 3),
       # not the 30/31 of docs/LABMATE.md, so the real bench maps safe_tray -> tag 10, handover -> tag 11.
