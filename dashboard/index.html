@@ -260,11 +260,146 @@
   .pose .u { font-size: .75rem; color: var(--muted); margin-left: .15em; }
   .arm .foot { font-size: .85rem; color: var(--muted); margin-top: .3rem; word-break: break-word; }
 
+  /* collapsible cell section */
+  .collapser { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: .5rem; font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit; }
+  .collapser:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+  .collapser .chev { display: inline-block; transition: transform .15s; font-size: 1.1em; }
+  #cellpanel.collapsed .collapser .chev { transform: rotate(-90deg); }
+  #cellpanel.collapsed #cellbody { display: none; }
+  #cellpanel.collapsed > h2 { margin-bottom: 0; }
+
+  /* ---- LabMate ---- */
+  #labpanel { border: 3px solid #6b5a2f; box-shadow: 0 0 30px rgba(255,210,63,.10); padding: .9rem 1.1rem; }
+  .lab-head { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .8rem; }
+  .lab-head h2 { margin: 0; font-size: 1.5rem; color: var(--leader); letter-spacing: .08em; }
+  .lab-head .grow { flex: 1; }
+  .ls { font-size: 1.35rem; padding: .15rem .85rem; }
+  .ls-idle { background: #333c4a; color: #fff; }
+  .ls-busy { background: var(--accent); color: #000; animation: pulse 1.2s ease-in-out infinite; }
+  .ls-confirm { background: var(--warn); color: #000; animation: pulse .7s ease-in-out infinite; }
+  .ls-move { background: var(--pill); color: #fff; border-color: #8fc1ff; }
+  .ls-ask { background: var(--leader); color: #000; animation: pulse 1.2s ease-in-out infinite; }
+  .ls-done { background: var(--ok); color: #000; }
+  .ls-failed { background: var(--bad); color: #fff; }
+  .ls-cancelled { background: #4a5568; color: #fff; }
+  .armcap { display: flex; flex-wrap: wrap; gap: .35rem; justify-content: flex-end; }
+  .armcap .badge { font-size: 1.15rem; padding: .15rem .75rem; }
+  .b-avail { background: #0f3d26; color: var(--ok); border-color: var(--ok); border-width: 2px; }
+  .b-unplug { background: var(--bad); color: #fff; border-color: #ffb3b3; border-width: 2px; animation: pulse 1s ease-in-out infinite; }
+  #labhand { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .4rem; font-size: 1.6rem; }
+  #labhand:empty { display: none; }
+  .lab-ctl { display: flex; flex-wrap: wrap; align-items: stretch; gap: .7rem; margin-top: .7rem; }
+  #inspectbtn { font-size: 2rem; font-weight: 900; padding: .6rem 2rem; border-radius: 12px; border: 0; background: var(--leader); color: #000; cursor: pointer; letter-spacing: .03em; }
+  .fetchrow { display: flex; gap: .5rem; flex: 1 1 22rem; min-width: 0; }
+  #fetchitem { flex: 1; min-width: 0; font: inherit; font-size: 1.5rem; padding: .45rem .6rem; background: #05080d; color: var(--text); border: 2px solid var(--line); border-radius: 10px; }
+  #fetchitem:focus { outline: none; border-color: var(--accent); }
+  #fetchbtn { font-size: 1.6rem; font-weight: 900; padding: .45rem 1.5rem; border-radius: 10px; border: 0; background: var(--accent); color: #000; cursor: pointer; }
+  #labstop { font-size: 1.6rem; font-weight: 900; padding: .45rem 1.6rem; border-radius: 10px; border: 3px solid var(--bad); background: #4a0f0f; color: #fff; cursor: pointer; }
+  #inspectbtn:disabled, #fetchbtn:disabled, #labstop:disabled, #answerbtn:disabled { opacity: .45; cursor: not-allowed; }
+  #labmsg { margin-top: .4rem; font-size: 1.05rem; min-height: 1.3em; }
+  #labmsg.err { color: var(--bad); font-weight: 700; }
+  #labmsg.ok { color: var(--ok); }
+  #labstatus { font-size: clamp(1.3rem, 2vw, 2.1rem); font-weight: 800; color: #ffe9a8; margin: .1rem 0 .2rem; word-break: break-word; }
+  #labstatus:empty { display: none; }
+  #labstatus .bad { color: var(--bad); }
+  .labgrid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: .8rem; margin-top: .6rem; align-items: start; }
+  .benchrow { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: .7rem; align-items: start; }
+  #markedbox { position: relative; aspect-ratio: 4 / 3; width: 100%; max-height: 58vh; background: #000; border-radius: 8px; overflow: hidden; display: grid; place-items: center; }
+  #marked { width: 100%; height: 100%; object-fit: contain; display: none; }
+  #nomarked { color: var(--muted); font-size: 1.3rem; font-weight: 700; text-align: center; padding: 1rem; }
+  #markedcap { font-size: .9rem; color: var(--muted); margin-top: .3rem; }
+  #labitems { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; }
+  #labitems li { font-size: clamp(1.25rem, 1.75vw, 1.9rem); font-weight: 800; padding: .2rem .5rem; border-radius: 8px; background: #0b1119; border: 2px solid #233046; word-break: break-word; }
+  #labitems .mk { display: inline-block; min-width: 2.2em; color: var(--leader); font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+  #labitems .st { color: var(--muted); font-weight: 600; }
+  #labitems li.hz { border-color: var(--bad); background: #220c0f; }
+  #labitems li.hz .st { color: #ffb3b3; }
+  #labitems li.empty { font-size: 1.1rem; font-weight: 400; border: 0; background: none; }
+  #hazards { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+  #hazards li.hzd { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .2rem .6rem; align-items: center; padding: .5rem .6rem; border-radius: 10px; border: 2px solid #233046; background: #0b1119; }
+  #hazards .rk { grid-row: span 2; font-size: 2rem; font-weight: 900; color: var(--muted); width: 1.4em; text-align: center; }
+  #hazards .ht { font-size: clamp(1.2rem, 1.7vw, 1.8rem); font-weight: 800; word-break: break-word; display: flex; flex-wrap: wrap; align-items: center; gap: .2rem .5rem; }
+  #hazards .marks { color: var(--leader); font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+  #hazards .hs { font-size: 1.15rem; padding: .15rem .6rem; white-space: nowrap; }
+  #hazards .fix { grid-column: 2 / span 2; font-size: 1.1rem; color: #cfe0f5; }
+  #hazards .fix b { color: var(--muted); font-weight: 600; }
+  .sev { font-size: 1rem; padding: .1rem .5rem; }
+  .sev-4 { background: var(--bad); color: #fff; }
+  .sev-3 { background: #ff7a1a; color: #000; }
+  .sev-2 { background: var(--warn); color: #000; }
+  .sev-1 { background: #4a5568; color: #fff; }
+  .mv { font-size: .85rem; }
+  .mv-yes { background: #0f2f3d; color: var(--accent); border-color: var(--accent); }
+  .mv-no { background: #3d2a0f; color: var(--warn); border-color: var(--warn); }
+  .hs-found { background: #333c4a; color: #fff; }
+  .hs-confirming { background: var(--warn); color: #000; animation: pulse .7s ease-in-out infinite; }
+  .hs-moving { background: var(--pill); color: #fff; animation: pulse 1s ease-in-out infinite; }
+  .hs-moved { background: var(--ok); color: #000; }
+  .hs-report { background: #3d2a0f; color: var(--warn); border-color: var(--warn); }
+  .hs-failed { background: var(--bad); color: #fff; }
+  .hs-cancelled { background: #4a5568; color: #fff; }
+  #hazards li.h-confirming { border-color: var(--warn); box-shadow: 0 0 0 2px rgba(255,176,32,.5); }
+  #hazards li.h-moving { border-color: var(--pill); box-shadow: 0 0 0 2px rgba(31,111,235,.5); }
+  #hazards li.h-moved { border-color: #1f5f3c; }
+  #hazards li.h-moved .ht { color: #b8f7c9; }
+  #hazards li.empty, #usecase .empty { font-size: 1.15rem; }
+  #hazards li.allclear { font-size: 1.6rem; font-weight: 900; color: var(--ok); }
+  #usecase .uct { font-size: clamp(1.6rem, 2.5vw, 2.7rem); font-weight: 900; color: #ffe9a8; line-height: 1.15; word-break: break-word; }
+  #usecase .ucc { font-size: 1.15rem; color: var(--muted); margin: .15rem 0 .45rem; }
+  #usecase .ucc b { color: var(--text); }
+  #usecase .tools { display: flex; flex-wrap: wrap; gap: .4rem; }
+  #usecase .tool { font-size: clamp(1.3rem, 1.9vw, 2rem); font-weight: 900; padding: .15rem .65rem; border-radius: 10px; border: 2px solid; }
+  #usecase .tool.have { color: var(--ok); border-color: #1f5f3c; background: #0b2016; }
+  #usecase .tool.miss { color: #fff; border-color: var(--bad); background: #4a0f0f; }
+  #usecase .tool.opt { color: var(--muted); border-color: #33425a; border-style: dashed; font-size: 1.2rem; }
+  #usecase .unk { font-size: clamp(1.4rem, 2.1vw, 2.2rem); font-weight: 800; color: var(--warn); }
+  #usecase .missline { font-size: 1.3rem; font-weight: 800; margin-top: .4rem; color: #ffb3b3; }
+  #usecase .missline.ok { color: var(--ok); }
+  .labstack { display: grid; gap: .8rem; margin-top: .8rem; }
+  #qbox { display: none; border: 3px solid var(--leader); background: #1c1806; }
+  #qbox.on { display: block; }
+  #qbox.answered { border-color: #5b5126; background: var(--panel2); }
+  #labq { font-size: clamp(1.6rem, 2.6vw, 2.9rem); font-weight: 800; color: #fff3c4; line-height: 1.25; word-break: break-word; }
+  #qbox.answered #labq { font-size: clamp(1.15rem, 1.6vw, 1.6rem); color: #d9cfa6; }
+  #answerform { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .6rem; }
+  #qbox.answered #answerform { display: none; }
+  #labans { flex: 1 1 18rem; min-width: 0; font-size: 1.6rem; padding: .5rem .8rem; background: #05080d; border: 2px solid var(--line); border-radius: 10px; }
+  #labans:focus { outline: none; border-color: var(--leader); }
+  #answerbtn { font-size: 1.6rem; font-weight: 900; padding: .5rem 1.6rem; border-radius: 10px; border: 0; background: var(--leader); color: #000; cursor: pointer; }
+  #labgiven { font-size: 1.4rem; font-weight: 700; color: var(--ok); margin-top: .35rem; word-break: break-word; }
+  #labgiven:empty { display: none; }
+  #fetchbox { display: none; }
+  #fetchbox.on { display: block; }
+  #fetchbox.f-failed { border-color: var(--bad); }
+  #fetchbox.f-done { border-color: var(--ok); }
+  #fetchline { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .7rem; font-size: clamp(1.4rem, 2vw, 2.1rem); font-weight: 800; }
+  #fetchres { font-size: clamp(1.3rem, 1.9vw, 2rem); font-weight: 800; margin-top: .3rem; word-break: break-word; }
+  #fetchres.bad { color: var(--bad); }
+  #fetchres.ok { color: var(--ok); }
+  #fetchres:empty { display: none; }
+  .steppills { display: flex; flex-wrap: wrap; gap: .3rem; }
+  .steppills .badge { font-size: .95rem; }
+  #reportbox.streaming { border-color: var(--accent); border-width: 2px; }
+  #reportbox.done { border-color: var(--ok); border-width: 2px; }
+  #labreport { font-size: clamp(22px, 2.1vw, 34px); line-height: 1.45; white-space: pre-wrap; word-break: break-word; max-height: 60vh; overflow-y: auto; padding: .2rem; }
+  #labreport .placeholder { color: var(--muted); font-style: italic; font-size: .7em; }
+  #labarms { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: .6rem; }
+  .b-unplugged { background: var(--bad); color: #fff; font-size: 1rem; }
+  #confirmbar {
+    display: none; position: fixed; left: 0; right: 0; top: 0; z-index: 50;
+    padding: .7rem 1rem; background: var(--warn); color: #000; text-align: center;
+    font-size: clamp(1.6rem, 3.6vw, 3.6rem); font-weight: 900; line-height: 1.15;
+    box-shadow: 0 6px 30px rgba(0,0,0,.6); border-bottom: 4px solid #000;
+  }
+  #confirmbar.on { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .3rem 1rem; }
+  #confirmbar .cd { display: inline-block; min-width: 1.1em; font-size: 1.25em; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+  #confirmcancel { font: inherit; font-size: max(.65em, 1.4rem); font-weight: 900; padding: .2rem 1.1rem; border-radius: 12px; border: 4px solid #000; background: var(--bad); color: #fff; cursor: pointer; }
+
   @keyframes blink { 50% { opacity: 0; } }
   @keyframes pulse { 50% { filter: brightness(1.35); } }
 
   @media (max-width: 1000px) {
-    .cols, .bottom, .cellgrid { grid-template-columns: minmax(0, 1fr); }
+    .cols, .bottom, .cellgrid, .labgrid { grid-template-columns: minmax(0, 1fr); }
     #answer { max-height: none; }
   }
   @media (max-width: 560px) {
@@ -272,6 +407,16 @@
     main { padding: .5rem; gap: .5rem; }
     #askform { flex-direction: column; }
     #goalform > * { flex: 1 1 100%; }
+    .benchrow { grid-template-columns: minmax(0, 1fr); }
+    #inspectbtn, #labstop { flex: 1 1 100%; }
+    .fetchrow { flex: 1 1 100%; }
+    #answerform > * { flex: 1 1 100%; }
+    #labpanel { padding: .6rem .6rem; }
+    .lab-head h2 { font-size: 1.2rem; }
+    .armcap { justify-content: flex-start; }
+    #hazards li.hzd { grid-template-columns: auto minmax(0, 1fr); }
+    #hazards .hs { grid-column: 2; justify-self: start; }
+    #hazards .fix { grid-column: 1 / span 2; }
     #steps li.step { grid-template-columns: 1.9em minmax(0, 1fr); padding: .4rem .45rem; }
     #objects { font-size: 1rem; }
     .hdr-right { margin-left: 0; }
@@ -292,14 +437,83 @@
   </div>
 </header>
 <div id="banner"></div>
+<div id="confirmbar" role="alert" aria-live="assertive"><span id="confirmtext"></span><button id="confirmcancel" type="button">Cancel</button></div>
 <main>
   <section class="panel" aria-label="nodes">
     <h2>Swarm nodes <span class="count" id="nodecount"></span></h2>
     <div id="nodes"><div class="empty">waiting for node list…</div></div>
   </section>
 
+  <section class="panel" id="labpanel" aria-label="LabMate">
+    <div class="lab-head">
+      <h2>LabMate · research assistant</h2>
+      <span id="labstate" class="badge ls ls-idle">IDLE</span>
+      <span id="lablead" class="plan-lead"></span>
+      <span class="grow"></span>
+      <span id="armcap" class="armcap"></span>
+    </div>
+    <div id="labhand"></div>
+    <div class="lab-ctl">
+      <button id="inspectbtn" type="button">Inspect bench</button>
+      <form id="fetchform" class="fetchrow" autocomplete="off">
+        <select id="fetchitem" aria-label="item to fetch"><option value="">items appear after Inspect</option></select>
+        <button id="fetchbtn" type="submit">Fetch</button>
+      </form>
+      <button id="labstop" type="button" disabled>Stop</button>
+    </div>
+    <div id="labmsg"></div>
+    <div id="labstatus"></div>
+    <section class="subpanel" id="qbox" aria-label="question for the scientist">
+      <h3>LabMate asks <span class="count" id="qstate"></span></h3>
+      <div id="labq"></div>
+      <div id="labgiven"></div>
+      <form id="answerform" autocomplete="off">
+        <input id="labans" type="text" placeholder="Your answer… (Enter)" aria-label="answer">
+        <button id="answerbtn" type="submit">Answer</button>
+      </form>
+    </section>
+    <div class="labgrid">
+      <div class="stack">
+        <section class="subpanel">
+          <h3>Bench camera · numbered marks <span class="count" id="markednode"></span></h3>
+          <div class="benchrow">
+            <div id="markedbox"><img id="marked" alt="bench camera with numbered marks"><div id="nomarked">no marked frame yet</div></div>
+            <ol id="labitems"><li class="empty">press Inspect bench</li></ol>
+          </div>
+          <div id="markedcap"></div>
+        </section>
+        <section class="subpanel" id="ucbox">
+          <h3>Experiment <span class="count" id="ucconf"></span></h3>
+          <div id="usecase"><div class="empty">no inspection yet</div></div>
+        </section>
+      </div>
+      <div class="stack">
+        <section class="subpanel" id="hazbox">
+          <h3>Hazards · safety first <span class="count" id="hazcount"></span></h3>
+          <ol id="hazards"><li class="empty">no inspection yet</li></ol>
+        </section>
+        <section class="subpanel" id="fetchbox">
+          <h3>Fetch <span class="count mono" id="fetchid"></span></h3>
+          <div id="fetchline"></div>
+          <div id="fetchres"></div>
+        </section>
+        <section class="subpanel">
+          <h3>Arm (arm.cell) <span class="count" id="labarmcount"></span></h3>
+          <div id="labarms"><div class="empty">no arm.cell telemetry</div></div>
+        </section>
+      </div>
+    </div>
+    <div class="labstack">
+      <section class="subpanel" id="reportbox">
+        <h3>Report <span class="count mono" id="reportjob"></span></h3>
+        <div id="labreport"><span class="placeholder">The final report streams here after you answer the question.</span></div>
+      </section>
+    </div>
+  </section>
+
   <section class="panel" id="cellpanel" aria-label="robot cell">
-    <h2>Robot cell · robot building robot <span class="count" id="cellsum"></span></h2>
+    <h2><button id="celltoggle" class="collapser" type="button" aria-expanded="true" aria-controls="cellbody"><span class="chev">▾</span>Robot cell · robot building robot</button> <span class="count" id="cellsum"></span></h2>
+    <div id="cellbody">
     <form id="goalform" autocomplete="off">
       <input id="goal" type="text" placeholder="Assembly goal… (Enter)" aria-label="assembly goal">
       <button id="buildbtn" type="submit">Build</button>
@@ -335,6 +549,7 @@
           <div id="arms"><div class="empty">no arm telemetry</div></div>
         </section>
       </div>
+    </div>
     </div>
   </section>
 
@@ -433,7 +648,11 @@
     hadLeader: null,
     plans: {}, currentPlanId: null, planTrack: {},   // plan_id -> plan; plan_id -> {leader, state, handovers}
     tws: null, twsTimer: null,                       // /ws/topics socket (follows the main connection)
-    cell: null, arms: {}, topicSeq: {}               // latest cell.state / arm.*.state samples
+    cell: null, arms: {}, topicSeq: {},              // latest cell.state / arm.*.state samples
+    blobs: null,                                     // latest cell.blobs sample
+    labMainId: null, labFetchId: null,               // LabMate: current inspect plan, current fetch plan
+    labJobs: {}, labItems: [], confirmSeen: {},      // job ids owned by lab plans; latest agreed items
+    armHosts: {}, armAvail: null                     // node_id -> last seen advertising arm.cell; last availability
   };
 
   // ---------------------------------------------------------------- peers
@@ -604,6 +823,7 @@
       openTopics(host);
       primeTopics(host);
       cellFrameTick();
+      markedTick();
     };
     ws.onmessage = function (ev) {
       if (S.ws !== ws) return;
@@ -678,7 +898,7 @@
     if (pl && !Array.isArray(pl) && typeof pl === 'object') pl = Object.keys(pl).map(function (k) { return pl[k]; });
     (Array.isArray(pl) ? pl : []).forEach(function (p) { onPlan(p, false, false); });
     if (Array.isArray(pl) && pl.length) pickCurrentPlan();
-    render.plan = true;
+    render.plan = render.lab = true;
     render.answer = render.reports = render.tasks = render.events = true;
     schedule();
   }
@@ -724,7 +944,8 @@
     S.hadLeader = key;
     if (S.host) notePeer(S.host, { node_id: S.self }, true);
     updateConnText();
-    render.nodes = render.banner = render.header = true;
+    noteArmAvail();
+    render.nodes = render.banner = render.header = render.lab = true;
     schedule();
   }
 
@@ -751,7 +972,10 @@
   function isAskJob(j) {
     if (!j) return false;
     if (j.kind && j.kind !== 'ask') return false;
-    return !/-(p|v\d+-a)\d+$/.test(String(j.job_id || ''));   // planner ids: <plan>-p<n>, <plan>-v<i>-a<n>
+    if (S.labJobs[j.job_id]) return false;                     // LabMate label/answer/report jobs
+    var id = String(j.job_id || '');
+    if (/-(L\d+p\d+a\d+|v\d+a\d+|ans-a\d+|rep)$/.test(id)) return false;   // LabMate ids (swarmmind/cell/labmate.py)
+    return !/-(p|v\d+-a)\d+$/.test(id);   // planner ids: <plan>-p<n>, <plan>-v<i>-a<n>
   }
   function onJobNew(b, live) {
     if (!b || !b.job_id) return;
@@ -766,6 +990,7 @@
     }
     render.answer = true; schedule();
     if (isPlanJob(j.job_id)) render.plan = true;
+    if (S.labJobs[j.job_id]) render.lab = true;
   }
   function mergeSnapshotJob(b) {
     if (!b || !b.job_id) return;
@@ -797,6 +1022,7 @@
       if (b.node_id) j.node_id = b.node_id;
       if (j.job_id === S.currentJobId) { render.answer = true; schedule(); }
       if (isPlanJob(j.job_id)) { render.plan = true; schedule(); }
+      if (S.labJobs[j.job_id]) { render.lab = true; schedule(); }
     }
   }
   function addHandoff(j, h) {
@@ -820,6 +1046,7 @@
         ' at token ' + b.at_seq + (b.gap_ms != null ? ' (gap ' + Math.round(b.gap_ms) + ' ms)' : '') + (b.vision_note ? ' — ' + b.vision_note : ''), b.to_node);
       if (j.job_id === S.currentJobId || (!S.currentJobId && isAskJob(j))) { S.currentJobId = j.job_id; render.answer = true; schedule(); }
       if (isPlanJob(j.job_id)) { render.plan = true; schedule(); }
+      if (S.labJobs[j.job_id]) { render.lab = true; schedule(); }
     }
   }
   function onDone(b, live) {
@@ -833,6 +1060,7 @@
     if (live && was !== 'done') addLocalEvent('job', 'info', 'job ' + shortId(j.job_id) + ' done (' + Object.keys(j.tokens).length + ' tokens, ' + j.handoffs.length + ' handoff' + (j.handoffs.length === 1 ? '' : 's') + ')', j.node_id);
     if (j.job_id === S.currentJobId) { render.answer = true; schedule(); }
     if (isPlanJob(j.job_id)) { render.plan = true; schedule(); }
+    if (S.labJobs[j.job_id]) { render.lab = true; schedule(); }
   }
   function pickCurrentJob() {
     var best = null;
@@ -896,7 +1124,7 @@
   function clip(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 
   // ---------------------------------------------------------------- rendering
-  var render = { nodes: true, banner: true, header: true, answer: true, events: true, reports: true, tasks: true, plan: true, cell: true };
+  var render = { nodes: true, banner: true, header: true, answer: true, events: true, reports: true, tasks: true, plan: true, cell: true, lab: true };
   var scheduled = false;
   function schedule() {
     if (scheduled) return;
@@ -912,9 +1140,10 @@
     if (render.answer) { render.answer = false; renderAnswer(); }
     if (render.events) { render.events = false; renderEvents(); }
     if (render.reports) { render.reports = false; renderReports(); }
-    if (render.tasks) { render.tasks = false; renderTasks(); render.plan = true; }   // assignees live on tasks
+    if (render.tasks) { render.tasks = false; renderTasks(); render.plan = render.lab = true; }   // assignees live on tasks
     if (render.plan) { render.plan = false; renderPlan(); }
-    if (render.cell) { render.cell = false; renderCellState(); }
+    if (render.cell) { render.cell = false; renderCellState(); render.lab = true; }
+    if (render.lab) { render.lab = false; renderLab(); }
   }
 
   function nodeList() {
@@ -1209,13 +1438,14 @@
     if (live && prev && num(prev.step, -1) !== num(p.step, -1) && planState(p) === 'running' && p.steps[p.step]) {
       addLocalEvent('plan', 'info', 'plan ' + shortId(id) + ' step ' + (p.step + 1) + '/' + p.steps.length + ': ' + stepLabel(p.steps[p.step]).join(' '), p.leader);
     }
+    if (isLabPlan(p)) { onLabPlan(p, prev, live, isNewMsg); render.lab = true; schedule(); return; }   // LabMate panel
     var cur = S.plans[S.currentPlanId];
     if ((live && isNewMsg) || !cur || (cur !== p && planKey(p) > planKey(cur))) S.currentPlanId = id;
     render.plan = true; schedule();
   }
   function pickCurrentPlan() {
     var best = null;
-    Object.keys(S.plans).forEach(function (k) { var p = S.plans[k]; if (!best || planKey(p) > planKey(best)) best = p; });
+    Object.keys(S.plans).forEach(function (k) { var p = S.plans[k]; if (!isLabPlan(p) && (!best || planKey(p) > planKey(best))) best = p; });
     if (best) S.currentPlanId = best.plan_id;
   }
   // remember each plan's leader so a mid-run change shows as a "handed over" marker
@@ -1270,7 +1500,7 @@
   function renderPlan() {
     var p = S.plans[S.currentPlanId];
     var box = $('planbox'), badge = $('planstate'), ul = $('steps');
-    var nplans = Object.keys(S.plans).length;
+    var nplans = Object.keys(S.plans).filter(function (k) { return !isLabPlan(S.plans[k]); }).length;
     $('cellsum').textContent = nplans ? nplans + ' plan' + (nplans === 1 ? '' : 's') : '';
     if (!p) {
       box.className = 'subpanel'; badge.className = 'badge ps ps-idle'; badge.textContent = 'NO PLAN';
@@ -1461,8 +1691,8 @@
   function onSample(m, primed) {
     if (Array.isArray(m)) { m.forEach(function (x) { onSample(x, primed); }); return; }
     if (!m || typeof m.topic !== 'string') return;
-    var isCell = m.topic === 'cell.state', isArm = /^arm\..+\.state$/.test(m.topic);
-    if (!isCell && !isArm) return;
+    var isCell = m.topic === 'cell.state', isArm = /^arm\..+\.state$/.test(m.topic), isBlobs = m.topic === 'cell.blobs';
+    if (!isCell && !isArm && !isBlobs) return;
     var key = (m.origin || '') + '|' + m.topic;
     if (typeof m.seq === 'number') {
       if (S.topicSeq[key] !== undefined && m.seq <= S.topicSeq[key]) return;   // reordered / duplicate
@@ -1471,7 +1701,7 @@
     var rx = now();
     if (primed && typeof m.ts === 'number') rx = Math.min(rx, tsMs(m.ts));     // cached sample: keep its age
     var rec = { topic: m.topic, data: m.data || {}, origin: m.origin || null, ts: m.ts, rx: rx };
-    if (isCell) S.cell = rec; else S.arms[m.topic] = rec;
+    if (isCell) S.cell = rec; else if (isBlobs) S.blobs = rec; else S.arms[m.topic] = rec;
     topicsDirty = true;
   }
   setInterval(function () { if (topicsDirty) { topicsDirty = false; render.cell = true; schedule(); } }, TOPIC_FPS_MS);
@@ -1522,49 +1752,52 @@
     var box = $('arms');
     var ids = Object.keys(S.arms).sort();
     box.textContent = '';
-    ids.forEach(function (topic) {
-      var rec = S.arms[topic], a = rec.data || {};
-      var stale = now() - rec.rx > CELL_STALE_MS;
-      var estop = !!a.estop;
-      var card = el('div', 'arm' + (estop ? ' estop' : '') + (stale ? ' stale' : ''));
-      var top = el('div', 'top');
-      top.appendChild(el('span', 'aname', topic.replace(/\.state$/, '')));
-      if (a.driver) top.appendChild(el('span', 'chip mono', a.driver));
-      card.appendChild(top);
-      var bd = el('div', 'badges');
-      bd.appendChild(el('span', 'badge ' + (estop ? 'b-estop' : 'b-estopok'), estop ? 'E-STOP' : 'E-STOP CLEAR'));
-      var busy = !!(a.busy || a.moving);
-      bd.appendChild(el('span', 'badge ' + (busy ? 'b-busy' : 'b-idle'), busy ? 'BUSY' : 'IDLE'));
-      if (a.fault) bd.appendChild(el('span', 'badge b-dead', 'FAULT'));
-      if (a.connected === false) bd.appendChild(el('span', 'badge b-unhealthy', 'DISCONNECTED'));
-      if (stale) bd.appendChild(el('span', 'badge b-stale', 'STALE'));
-      card.appendChild(bd);
-      var grid = el('div', 'pose');
-      function cell(k, v, u) {
-        var dv = el('div'); dv.appendChild(el('div', 'k', k));
-        var vv = el('div', 'v', v); if (u) vv.appendChild(el('span', 'u', u));
-        dv.appendChild(vv); grid.appendChild(dv);
-      }
-      var P = armPose(a);
-      if (P) { cell('x', P.x, 'mm'); cell('y', P.y, 'mm'); cell('z', P.z, 'mm'); cell('yaw', P.yaw, '°'); }
-      var g = armGrip(a);
-      if (g !== null) cell('gripper', g, '% open');
-      if (!P && a.joints && typeof a.joints === 'object') {
-        Object.keys(a.joints).slice(0, 7).forEach(function (jn) { cell(jn.replace(/_/g, ' '), deg(a.joints[jn]), '°'); });
-      }
-      card.appendChild(grid);
-      var foot = [];
-      if (a.action) foot.push('doing ' + a.action);
-      if (a.mode) foot.push('mode ' + a.mode);
-      if (estop && a.estop_reason) foot.push('e-stop: ' + a.estop_reason);
-      if (a.fault && typeof a.fault === 'string') foot.push('fault: ' + a.fault);
-      if (a.task_id) foot.push('task ' + shortId(a.task_id));
-      foot.push('from ' + (rec.origin || '?') + ' · ' + ageText(rec));
-      card.appendChild(el('div', 'foot', foot.join(' · ')));
-      box.appendChild(card);
-    });
+    ids.forEach(function (topic) { box.appendChild(armCard(topic, S.arms[topic])); });
     if (!ids.length) box.appendChild(el('div', 'empty', 'no arm telemetry'));
     $('armcount').textContent = ids.length || '';
+  }
+  // one arm.<id>.state card; extra(badges, a, rec) may add badges (LabMate adds UNPLUGGED)
+  function armCard(topic, rec, extra) {
+    var a = rec.data || {};
+    var stale = now() - rec.rx > CELL_STALE_MS;
+    var estop = !!a.estop;
+    var card = el('div', 'arm' + (estop ? ' estop' : '') + (stale ? ' stale' : ''));
+    var top = el('div', 'top');
+    top.appendChild(el('span', 'aname', topic.replace(/\.state$/, '')));
+    if (a.driver) top.appendChild(el('span', 'chip mono', a.driver));
+    card.appendChild(top);
+    var bd = el('div', 'badges');
+    bd.appendChild(el('span', 'badge ' + (estop ? 'b-estop' : 'b-estopok'), estop ? 'E-STOP' : 'E-STOP CLEAR'));
+    var busy = !!(a.busy || a.moving);
+    bd.appendChild(el('span', 'badge ' + (busy ? 'b-busy' : 'b-idle'), busy ? 'BUSY' : 'IDLE'));
+    if (a.fault) bd.appendChild(el('span', 'badge b-dead', 'FAULT'));
+    if (a.connected === false) bd.appendChild(el('span', 'badge b-unhealthy', 'DISCONNECTED'));
+    if (stale) bd.appendChild(el('span', 'badge b-stale', 'STALE'));
+    if (extra) extra(bd, a, rec, card);
+    card.appendChild(bd);
+    var grid = el('div', 'pose');
+    function cell(k, v, u) {
+      var dv = el('div'); dv.appendChild(el('div', 'k', k));
+      var vv = el('div', 'v', v); if (u) vv.appendChild(el('span', 'u', u));
+      dv.appendChild(vv); grid.appendChild(dv);
+    }
+    var P = armPose(a);
+    if (P) { cell('x', P.x, 'mm'); cell('y', P.y, 'mm'); cell('z', P.z, 'mm'); cell('yaw', P.yaw, '°'); }
+    var g = armGrip(a);
+    if (g !== null) cell('gripper', g, '% open');
+    if (!P && a.joints && typeof a.joints === 'object') {
+      Object.keys(a.joints).slice(0, 7).forEach(function (jn) { cell(jn.replace(/_/g, ' '), deg(a.joints[jn]), '°'); });
+    }
+    card.appendChild(grid);
+    var foot = [];
+    if (a.action) foot.push('doing ' + a.action);
+    if (a.mode) foot.push('mode ' + a.mode);
+    if (estop && a.estop_reason) foot.push('e-stop: ' + a.estop_reason);
+    if (a.fault && typeof a.fault === 'string') foot.push('fault: ' + a.fault);
+    if (a.task_id) foot.push('task ' + shortId(a.task_id));
+    foot.push('from ' + (rec.origin || '?') + ' · ' + ageText(rec));
+    card.appendChild(el('div', 'foot', foot.join(' · ')));
+    return card;
   }
   // pose in arm-base metres (contract) -> mm; accepts {x,y,z,yaw}, [x,y,z,yaw] / [x,y,z,r,p,yaw], flat x/y/z, or pose_mm
   function armPose(a) {
@@ -1585,48 +1818,607 @@
     return (g <= 1 ? g * 100 : g).toFixed(0);
   }
 
-  // ---------------------------------------------------------------- annotated cell frame (1 s)
-  var cellFrameBusy = false, cellFrameUrl = null, cellFrameShown = null;
-  $('cellframe').onload = function () {
-    // the new blob is on screen: free the previous one
-    if (cellFrameShown && cellFrameShown !== cellFrameUrl) { try { URL.revokeObjectURL(cellFrameShown); } catch (e) { /* ignore */ } }
-    cellFrameShown = cellFrameUrl;
-  };
-  function cellNoFrame(text) {
-    $('cellframe').style.display = 'none';
-    var nf = $('cellnoframe'); nf.style.display = 'block'; nf.textContent = text;
+  // ---------------------------------------------------------------- polled JPEG views (1 s): annotated cell frame, LabMate marks
+  // Fetched as blobs so a 404/timeout shows a message instead of a broken image; the previous blob is freed once the new one shows.
+  function framePoller(path, ids, texts, skip, capExtra) {
+    var busy = false, url = null, shown = null;
+    $(ids.img).onload = function () {
+      if (shown && shown !== url) { try { URL.revokeObjectURL(shown); } catch (e) { /* ignore */ } }
+      shown = url;
+    };
+    function noFrame(text) {
+      $(ids.img).style.display = 'none';
+      var nf = $(ids.none); nf.style.display = 'block'; nf.textContent = text;
+    }
+    return function tick() {
+      var host = S.host;
+      if (!host || !S.wsOpen || busy || (skip && skip())) return;
+      busy = true;
+      var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      var timer = setTimeout(function () { if (ctl) ctl.abort(); }, 1800);
+      var label = (S.peers[host] && S.peers[host].node_id) || host;
+      var opts = { cache: 'no-store' };
+      if (ctl) opts.signal = ctl.signal;
+      fetch(HTTP + host + path + '?t=' + now(), opts)
+        .then(function (r) {
+          if (!r.ok) { var e = new Error('HTTP ' + r.status); e.status = r.status; throw e; }
+          return r.blob();
+        })
+        .then(function (blob) {
+          clearTimeout(timer); busy = false;
+          if (S.host !== host) return;
+          url = URL.createObjectURL(blob);
+          var f = $(ids.img);
+          f.src = url; f.style.display = 'block'; $(ids.none).style.display = 'none';
+          $(ids.cap).textContent = 'updated ' + hhmmss(now()) + (capExtra ? capExtra() : '');
+          $(ids.node).textContent = label;
+        }, function (e) {
+          clearTimeout(timer); busy = false;
+          if (S.host !== host) return;
+          noFrame(e && e.status === 404 ? texts.missing : texts.down);
+          $(ids.cap).textContent = (e && e.status ? 'HTTP ' + e.status : 'unreachable') + ' from ' + hostLabel(host);
+          $(ids.node).textContent = label;
+        });
+    };
   }
-  function cellFrameTick() {
-    var host = S.host;
-    if (!host || !S.wsOpen || cellFrameBusy) return;
-    cellFrameBusy = true;
-    var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    var timer = setTimeout(function () { if (ctl) ctl.abort(); }, 1800);
-    var label = (S.peers[host] && S.peers[host].node_id) || host;
-    var opts = { cache: 'no-store' };
-    if (ctl) opts.signal = ctl.signal;
-    fetch(HTTP + host + '/cell/frame.jpg?t=' + now(), opts)
-      .then(function (r) {
-        if (!r.ok) { var e = new Error('HTTP ' + r.status); e.status = r.status; throw e; }
-        return r.blob();
-      })
-      .then(function (blob) {
-        clearTimeout(timer); cellFrameBusy = false;
-        if (S.host !== host) return;
-        cellFrameUrl = URL.createObjectURL(blob);
-        var f = $('cellframe');
-        f.src = cellFrameUrl; f.style.display = 'block'; $('cellnoframe').style.display = 'none';
-        $('cellframecap').textContent = 'updated ' + hhmmss(now());
-        $('cellframenode').textContent = label;
-      }, function (e) {
-        clearTimeout(timer); cellFrameBusy = false;
-        if (S.host !== host) return;
-        cellNoFrame(e && e.status === 404 ? 'no annotated frame yet' : 'cell camera unavailable');
-        $('cellframecap').textContent = (e && e.status ? 'HTTP ' + e.status : 'unreachable') + ' from ' + hostLabel(host);
-        $('cellframenode').textContent = label;
-      });
-  }
+  var cellFrameTick = framePoller('/cell/frame.jpg',
+    { img: 'cellframe', none: 'cellnoframe', cap: 'cellframecap', node: 'cellframenode' },
+    { missing: 'no annotated frame yet', down: 'cell camera unavailable' },
+    function () { return cellCollapsed; });
+  var markedTick = framePoller('/cell/marked.jpg',
+    { img: 'marked', none: 'nomarked', cap: 'markedcap', node: 'markednode' },
+    { missing: 'no marked frame yet', down: 'bench camera unavailable' },
+    null,
+    function () {
+      var b = S.blobs, d = b && b.data;
+      if (!d) return '';
+      var n = Array.isArray(d.blobs) ? d.blobs.length : 0;
+      return ' · ' + n + ' blob' + (n === 1 ? '' : 's') + (d.calibrated === false ? ' · NOT CALIBRATED' : '') +
+        (d.background === false ? ' · no background snapshot' : '') + ' · ' + ageText(b);
+    });
   setInterval(cellFrameTick, CELL_FRAME_EVERY_MS);
+  setInterval(markedTick, CELL_FRAME_EVERY_MS);
+
+  // ================================================================ LabMate (docs/LABMATE.md)
+  // Plans carrying a `lab` field are LabMate's: an inspect plan (hazards, experiment, question, report) and fetch plans.
+  var CELL_OPEN_KEY = 'swarmmind.cellopen.v1';
+  var cellCollapsed = true;
+  try { cellCollapsed = localStorage.getItem(CELL_OPEN_KEY) !== '1'; } catch (e) { /* storage unavailable */ }
+  function applyCellCollapse() {
+    $('cellpanel').classList.toggle('collapsed', cellCollapsed);
+    $('celltoggle').setAttribute('aria-expanded', cellCollapsed ? 'false' : 'true');
+  }
+  $('celltoggle').addEventListener('click', function () {
+    cellCollapsed = !cellCollapsed;
+    try { localStorage.setItem(CELL_OPEN_KEY, cellCollapsed ? '0' : '1'); } catch (e) { /* ignore */ }
+    applyCellCollapse();
+    if (!cellCollapsed) cellFrameTick();
+  });
+  applyCellCollapse();
+
+  // fallback copy of capability_config.cell.catalog.use_cases, used only when the plan doesn't say what's needed
+  var USE_CASES = {
+    spring_pendulum: { title: 'Spring pendulum', needs: ['spring', 'stand', 'ruler'], optional: ['multimeter'] },
+    stepper_test: { title: 'Stepper motor test', needs: ['stepper_motor', 'motor_driver', 'power_supply', 'screwdriver'], optional: ['multimeter'] },
+    deburring: { title: 'Filing / deburring', needs: ['file'], optional: ['screwdriver'] }
+  };
+  var LAB_BUSY = /^(inspect|label|look|scan|start|queued|planning|validating)/;
+
+  function labOf(p) { return p && p.lab && typeof p.lab === 'object' ? p.lab : {}; }
+  // cell plans carry kind "cell" and an empty lab {}; LabMate plans kind "lab" with lab.mode inspect | fetch
+  function isLabPlan(p) {
+    if (!p) return false;
+    if (p.kind) return /^(lab|inspect|fetch)/i.test(String(p.kind));
+    return !!(p.lab && typeof p.lab === 'object' && Object.keys(p.lab).length);
+  }
+  function isFetchPlan(p) {
+    var L = labOf(p);
+    if (L.mode) return L.mode === 'fetch';
+    if ((Array.isArray(L.hazards) && L.hazards.length) || L.use_case || L.question) return false;
+    return /fetch/i.test(String(p.kind || '')) || typeof L.fetch === 'string' || typeof L.item === 'string' || /^fetch\b/i.test(String(p.goal || ''));
+  }
+  function fetchItemOf(p) {
+    var L = labOf(p);
+    return (typeof L.fetch === 'string' && L.fetch) || L.item || ((String(p.goal || '').match(/fetch\s+(?:the\s+|a\s+)?(.+)/i) || [])[1]) ||
+      (p.steps && p.steps[0] && (p.steps[0].item || p.steps[0].object)) || '?';
+  }
+  var labRep = {};   // plan_id -> report job id once seen (plan.job_id is the current job: answer, then report)
+  function reportJobId(p) {
+    var L = labOf(p), j = p.job_id, st = planState(p);
+    var rid = L.report_job_id || L.report_job || p.report_job_id || null;
+    if (!rid && j && (/-rep$/.test(j) || (S.jobs[j] && S.jobs[j].kind === 'report') || (/report/.test(st) && !/-ans-a\d+$/.test(j)))) rid = j;
+    if (rid) labRep[p.plan_id] = rid;
+    return labRep[p.plan_id] || null;
+  }
+  function labStepLabel(s) {
+    var op = String((s && s.op) || '?');
+    var what = s ? (s.item || s.object || s.check || '') : '';
+    return op + (what ? ' ' + pretty(what) : '') + (s && s.target && s.target !== what ? ' → ' + pretty(s.target) : '');
+  }
+  function pretty(name) { return String(name == null ? '?' : name).replace(/_/g, ' '); }
+  function labItemsOf(p) { var L = labOf(p); return Array.isArray(L.items) ? L.items.filter(function (it) { return it && it.item; }) : []; }
+  function itemsByMark(items) { var m = {}; items.forEach(function (it) { if (it.mark !== undefined) m[it.mark] = it; }); return m; }
+  // backend statuses: found, confirming, moving, moved, fixed, contained, unverified, not_fixed, move_failed,
+  // report_only, needs_human, cancelled -> [class, label]
+  function hazInfo(h) {
+    var s = String((h && h.status) || '').toLowerCase();
+    if (!s) return h && h.movable === false ? ['report', 'NOT TOUCHED'] : ['found', 'FOUND'];
+    if (/confirm|announc|countdown/.test(s)) return ['confirming', 'CONFIRMING'];
+    if (/^not_?fixed/.test(s)) return ['failed', 'NOT FIXED ✗'];
+    if (/fail|error|not where|missing/.test(s)) return ['failed', 'FAILED ✗'];
+    if (/^unverified/.test(s)) return ['moved', 'MOVED (unverified)'];
+    if (/^contained/.test(s)) return ['moved', 'IN TRAY ✓'];
+    if (/^(fixed|verified|resolved|cleared|safe)/.test(s)) return ['moved', 'MOVED ✓ FIXED'];
+    if (/^(moved|done|ok|complete)/.test(s)) return ['moved', 'MOVED ✓'];
+    if (/human/.test(s)) return ['report', 'NEEDS A HUMAN'];
+    if (/report/.test(s)) return ['report', 'NOT TOUCHED'];
+    if (/cancel|skip|abort|stop/.test(s)) return ['cancelled', 'CANCELLED'];
+    if (/verif|relabel/.test(s)) return ['moving', 'VERIFYING…'];
+    if (/mov|carry|pick|plac|running/.test(s)) return ['moving', 'MOVING…'];
+    return ['found', s.replace(/_/g, ' ').toUpperCase()];
+  }
+  function hazStatus(h) { return hazInfo(h)[0]; }
+  function hazItem(h, byMark) {
+    if (h.item) return pretty(h.item);
+    var marks = Array.isArray(h.marks) ? h.marks : [];
+    for (var i = 0; i < marks.length; i++) if (byMark[marks[i]]) return pretty(byMark[marks[i]].item);
+    return pretty(h.type || 'item');
+  }
+  // ms left in the announce-and-wait window: the server deadline if it's sane, else counted from when we first saw it
+  function confirmLeft(p, h, idx) {
+    var L = labOf(p);
+    var dur = num(h.confirm_s, num(L.confirm_s, 5)) * 1000;
+    var key = p.plan_id + '#' + idx + '#' + (h.type || '') + '#' + (Array.isArray(h.marks) ? h.marks.join(',') : '') + '#' + (p.leader || '');
+    if (!S.confirmSeen[key]) S.confirmSeen[key] = now();
+    var st = (p.steps || []).filter(function (x) { return x && x.op === 'announce' && x.hazard === idx && x.result && typeof x.result === 'object'; })[0];
+    if (st && typeof st.result.confirm_s === 'number') dur = st.result.confirm_s * 1000;
+    var local = S.confirmSeen[key] + dur - now();
+    var dl = [st && st.result.until, h.deadline_ts, h.confirm_until, h.confirm_deadline_ts, h.deadline, L.confirm_deadline_ts, L.confirm_until]
+      .filter(function (v) { return typeof v === 'number' && isFinite(v); })[0];
+    if (dl !== undefined) {
+      var srv = tsMs(dl) - now();
+      if (srv > -3000 && srv < dur + 3000) return srv;   // else: clocks disagree, trust our own count
+    }
+    return local;
+  }
+  function onLabPlan(p, prev, live, isNewMsg) {
+    var L = labOf(p);
+    [L.report_job_id, L.report_job, p.report_job_id, L.job_id, L.label_job_id, p.job_id].forEach(function (id) {
+      if (typeof id !== 'string' || !id || S.labJobs[id]) return;
+      S.labJobs[id] = true;                                    // never shown in the Ask panel
+      if (S.currentJobId === id) { S.currentJobId = null; pickCurrentJob(); render.answer = true; }
+    });
+    var its = labItemsOf(p);
+    if (its.length && (S.labItemsKey === undefined || planKey(p) >= S.labItemsKey)) { S.labItems = its; S.labItemsKey = planKey(p); }
+    var slot = isFetchPlan(p) ? 'labFetchId' : 'labMainId';
+    var cur = S.plans[S[slot]];
+    if ((live && isNewMsg) || !cur || (cur !== p && planKey(p) > planKey(cur))) S[slot] = p.plan_id;
+    if (live && prev && prev !== p) {
+      var before = {};
+      (Array.isArray(labOf(prev).hazards) ? labOf(prev).hazards : []).forEach(function (h, i) { before[i + (h.type || '')] = hazStatus(h); });
+      var byMark = itemsByMark(its.length ? its : S.labItems);
+      (Array.isArray(L.hazards) ? L.hazards : []).forEach(function (h, i) {
+        var st = hazStatus(h), was = before[i + (h.type || '')];
+        if (was && was !== st) addLocalEvent('plan', st === 'failed' ? 'error' : 'info', 'hazard ' + pretty(h.type) + ' (' + hazItem(h, byMark) + '): ' + was + ' → ' + st, p.leader);
+      });
+      if (L.use_case && !labOf(prev).use_case) addLocalEvent('plan', 'info', 'experiment: ' + (L.use_case.title || L.use_case.id || 'unknown'), p.leader);
+    }
+  }
+
+  // ---------------------------------------------------------------- arm.cell availability (from ui.nodes capabilities)
+  function capsOf(n) { return Array.isArray(n && n.capabilities) ? n.capabilities : []; }
+  function armProviders() {
+    return nodeList().filter(function (n) { return n.alive !== false && capsOf(n).indexOf('arm.cell') >= 0; });
+  }
+  function noteArmAvail() {
+    var prov = armProviders().map(function (n) { return n.node_id; });
+    prov.forEach(function (id) { S.armHosts[id] = now(); });
+    var key = prov.join(',');
+    if (S.armAvail !== null && S.armAvail !== key) {
+      if (prov.length) addLocalEvent('up', 'info', 'arm.cell AVAILABLE on ' + prov.join(', '), prov[0]);
+      else addLocalEvent('down', 'error', 'arm.cell UNPLUGGED' + (S.armAvail ? ' (was on ' + S.armAvail + ')' : ''), S.armAvail.split(',')[0] || 'ui');
+    }
+    if (S.nodesInit) S.armAvail = key;
+  }
+  function renderArmCap() {
+    var box = $('armcap');
+    box.textContent = '';
+    var prov = armProviders();
+    prov.forEach(function (n) { box.appendChild(el('span', 'badge b-avail', 'arm.cell: AVAILABLE on ' + n.node_id)); });
+    if (!prov.length) {
+      var last = Object.keys(S.armHosts).sort(function (a, b) { return S.armHosts[b] - S.armHosts[a]; })[0];
+      var why = '';
+      if (last) why = S.nodes[last] && S.nodes[last].alive === false ? ' · ' + last + ' DOWN' : ' · was on ' + last;
+      box.appendChild(el('span', 'badge b-unplug', 'arm.cell: UNPLUGGED' + why));
+    }
+    return prov;
+  }
+
+  // ---------------------------------------------------------------- render
+  var focusedQ = {};
+  function labBadge(st) {
+    if (/^awaiting/.test(st)) return ['ls-ask', 'WAITING FOR YOUR ANSWER'];
+    if (/^answering/.test(st)) return ['ls-busy', 'READING YOUR ANSWER'];
+    if (/confirm|announc/.test(st)) return ['ls-confirm', 'CONFIRMING'];
+    if (/^(done|ok|complete)/.test(st)) return ['ls-done', 'DONE'];
+    if (/fail|error/.test(st)) return ['ls-failed', 'FAILED'];
+    if (/cancel/.test(st)) return ['ls-cancelled', 'STOPPED'];
+    if (/mov|fetch|carry|pick|plac|running/.test(st)) return ['ls-move', st.replace(/_/g, ' ').toUpperCase()];
+    return ['ls-busy', st.replace(/_/g, ' ').toUpperCase()];
+  }
+  function labStatusText(p, byMark) {
+    var L = labOf(p), st = planState(p);
+    if (/fail|error/.test(st)) return ['bad', (isFetchPlan(p) ? 'Fetch failed: ' : 'Failed: ') + (p.error || p.reason || L.error || L.message || 'unknown error')];
+    if (/cancel/.test(st)) return ['', p.error && !/operator|cancel/i.test(p.error) ? 'Stopped: ' + p.error : 'Stopped by the operator'];
+    if (L.message || L.status_text) return ['', L.message || L.status_text];
+    var hz = (Array.isArray(L.hazards) ? L.hazards : []).filter(function (h) { return hazStatus(h) === 'moving'; })[0];
+    var cz = (Array.isArray(L.hazards) ? L.hazards : []).filter(function (h) { return hazStatus(h) === 'confirming'; })[0];
+    if (cz && !/^awaiting/.test(st)) return ['', 'About to move ' + hazItem(cz, byMark) + ' to the safe tray: press Cancel to stop it'];
+    if (/^awaiting/.test(st)) return ['', 'Waiting for your answer ↑'];
+    if (/^answering/.test(st)) return ['', 'Reading your answer…'];
+    if (/report/.test(st)) return ['', 'Writing the report…'];
+    if (/^conclud/.test(st)) return ['', 'Working out the experiment…'];
+    if (isFetchPlan(p) && /^locat/.test(st)) return ['', 'Finding the ' + pretty(fetchItemOf(p)) + ' on the bench…'];
+    if (isFetchPlan(p) && /label/.test(st)) return ['', 'Re-labelling the bench before fetching the ' + pretty(fetchItemOf(p)) + '…'];
+    if (/^(done|ok|complete)/.test(st)) return ['', isFetchPlan(p) ? '' : 'Inspection complete'];
+    if (/verif/.test(st)) return ['', 'Checking the bench again…'];
+    if (hz) return ['', 'Moving ' + hazItem(hz, byMark) + ' to the safe tray…'];
+    if (isFetchPlan(p)) return ['', 'Fetching the ' + pretty(fetchItemOf(p)) + '…'];
+    if (LAB_BUSY.test(st)) return ['', 'Looking at the bench (two labelling passes)…'];
+    return ['', ''];
+  }
+  function activeLabPlan() {
+    var list = [S.plans[S.labMainId], S.plans[S.labFetchId]].filter(function (p) { return p && !TERMINAL[planState(p)]; });
+    list.sort(function (a, b) { return planKey(b) - planKey(a); });
+    return list[0] || null;
+  }
+
+  function renderLab() {
+    var main = S.plans[S.labMainId] || null, fp = S.plans[S.labFetchId] || null;
+    var L = labOf(main);
+    var mItems = labItemsOf(main);
+    var byMark = itemsByMark(mItems.length ? mItems : S.labItems);
+    var act = activeLabPlan();
+    var shown = act || [main, fp].filter(Boolean).sort(function (a, b) { return planKey(b) - planKey(a); })[0] || null;
+
+    // header: state, leader, handovers, arm availability
+    var badge = $('labstate');
+    if (shown) {
+      var lb = labBadge(planState(shown));
+      badge.className = 'badge ls ' + lb[0];
+      badge.textContent = (shown === fp && shown !== main ? 'FETCH · ' : '') + lb[1];
+    } else { badge.className = 'badge ls ls-idle'; badge.textContent = 'IDLE'; }
+    var lead = $('lablead');
+    lead.textContent = '';
+    if (shown && shown.leader) {
+      lead.appendChild(document.createTextNode('led by '));
+      lead.appendChild(el('span', 'badge b-leader', shown.leader));
+      var ln = S.nodes[shown.leader];
+      if (ln && ln.alive === false && !TERMINAL[planState(shown)]) {
+        lead.appendChild(document.createTextNode(' '));
+        lead.appendChild(el('span', 'badge b-down', 'LEADER DOWN · waiting for takeover'));
+      }
+    }
+    var hb = $('labhand');
+    hb.textContent = '';
+    [main, fp].forEach(function (p) {
+      if (!p) return;
+      ((S.planTrack[p.plan_id] || {}).handovers || []).forEach(function (h) {
+        var pill = el('span', 'handoff', '⟶ handed over ' + h.from + ' → ' + h.to + (p === fp && p !== main ? ' (fetch)' : ''));
+        pill.title = 'leader changed mid-run at ' + hhmmss(h.ms) + ' · plan ' + p.plan_id;
+        hb.appendChild(pill);
+      });
+    });
+    var prov = renderArmCap();
+    $('labstop').disabled = !act || labBusy.stop;
+    $('inspectbtn').disabled = labBusy.inspect;
+    var stx = shown ? labStatusText(shown, byMark) : ['', ''];
+    var sl = $('labstatus');
+    sl.textContent = '';
+    if (stx[1]) sl.appendChild(el('span', stx[0] || null, stx[1]));
+
+    // fetch dropdown from the latest agreed labels (keeps the operator's selection)
+    var sel = $('fetchitem');
+    var names = [], seenN = {};
+    S.labItems.forEach(function (it) { if (!seenN[it.item]) { seenN[it.item] = true; names.push(it); } });
+    names.sort(function (a, b) { return num(a.mark, 999) - num(b.mark, 999); });
+    var key = names.map(function (it) { return it.item + '#' + it.mark; }).join('|');
+    if (sel._key !== key) {
+      var keep = sel.value;
+      sel.textContent = '';
+      if (!names.length) sel.appendChild(new Option('items appear after Inspect', ''));
+      names.forEach(function (it) { sel.appendChild(new Option((it.mark !== undefined ? '#' + it.mark + ' ' : '') + pretty(it.item), it.item)); });
+      if (keep && seenN[keep]) sel.value = keep;
+      sel._key = key;
+    }
+    $('fetchbtn').disabled = !sel.value || labBusy.fetch;
+    $('fetchbtn').title = prov.length ? '' : 'arm.cell is unplugged';
+
+    // items beside the marked camera
+    var ul = $('labitems');
+    ul.textContent = '';
+    var hazMarks = {};
+    (Array.isArray(L.hazards) ? L.hazards : []).forEach(function (h) {
+      var st = hazStatus(h);
+      if (st !== 'moved' && st !== 'cancelled') (Array.isArray(h.marks) ? h.marks : []).forEach(function (m) { hazMarks[m] = true; });
+    });
+    var camItems = S.labItems.slice().sort(function (a, b) { return num(a.mark, 999) - num(b.mark, 999); });
+    camItems.forEach(function (it) {
+      var li = el('li', hazMarks[it.mark] ? 'hz' : null);
+      li.appendChild(el('span', 'mk', it.mark !== undefined ? '#' + it.mark : '#?'));
+      li.appendChild(document.createTextNode(pretty(it.item)));
+      if (it.state) li.appendChild(el('span', 'st', ' (' + pretty(it.state) + ')'));
+      if (hazMarks[it.mark]) li.appendChild(el('span', 'st', ' ⚠'));
+      ul.appendChild(li);
+    });
+    if (!camItems.length) ul.appendChild(el('li', 'empty', main && !TERMINAL[planState(main)] ? 'labelling… (two passes must agree)' : 'press Inspect bench'));
+
+    // hazards, ranked (server order is the safety ranking; an explicit rank wins)
+    var hz = Array.isArray(L.hazards) ? L.hazards.slice() : null;
+    var hl = $('hazards');
+    hl.textContent = '';
+    var banner = null;
+    if (hz) hz = hz.map(function (h, i) { return Object.assign({ _i: i }, h); });   // steps refer to the original index
+    if (hz && hz.some(function (h) { return typeof h.rank === 'number'; })) hz.sort(function (a, b) { return num(a.rank, 99) - num(b.rank, 99); });
+    var nMoved = 0;
+    (hz || []).forEach(function (h, i) {
+      var hi = hazInfo(h), st = hi[0];
+      if (st === 'moved') nMoved++;
+      var li = el('li', 'hzd h-' + st);
+      li.appendChild(el('span', 'rk', String(i + 1)));
+      var t = el('div', 'ht');
+      var sev = Math.max(1, Math.min(4, Math.round(num(h.severity, 1))));
+      t.appendChild(el('span', 'badge sev sev-' + sev, 'SEV ' + num(h.severity, '?')));
+      t.appendChild(el('span', null, pretty(h.type)));
+      var marks = Array.isArray(h.marks) ? h.marks : [];
+      if (marks.length) t.appendChild(el('span', 'marks', marks.map(function (m) { return '#' + m; }).join(' ')));
+      if (marks.length) t.appendChild(el('span', 'st', hazItem(h, byMark)));
+      t.appendChild(el('span', 'badge mv ' + (h.movable === false ? 'mv-no' : 'mv-yes'), h.movable === false ? 'REPORT-ONLY' : 'MOVABLE'));
+      li.appendChild(t);
+      var label = hi[1];
+      if (h.status === 'moved' && /verif/.test(planState(main))) label = 'MOVED · checking…';
+      if (st === 'confirming') {
+        var left = confirmLeft(main, h, h._i);
+        label = 'CONFIRMING · ' + Math.max(0, Math.ceil(left / 1000)) + ' s';
+        if (!banner && main && !TERMINAL[planState(main)]) banner = { h: h, left: left };
+      }
+      li.appendChild(el('span', 'badge hs hs-' + st, label));
+      var fix = el('div', 'fix');
+      fix.appendChild(el('b', null, 'fix: '));
+      fix.appendChild(document.createTextNode(h.fix || '—'));
+      if (h.error || h.reason) fix.appendChild(el('span', 'bad', ' · ' + (h.error || h.reason)));
+      else if (h.verify) fix.appendChild(el('span', null, ' · check: ' + h.verify));
+      li.appendChild(fix);
+      hl.appendChild(li);
+    });
+    if (hz && !hz.length) hl.appendChild(el('li', 'allclear', mItems.length || TERMINAL[planState(main)] || L.use_case ? '✓ No hazards found' : 'looking for hazards…'));
+    else if (!hz) hl.appendChild(el('li', 'empty', main ? (TERMINAL[planState(main)] ? 'no hazard data' : 'looking for hazards…') : 'no inspection yet'));
+    $('hazcount').textContent = hz && hz.length ? hz.length + ' found · ' + nMoved + ' moved' : '';
+
+    // giant "Moving X to safe tray in N…" banner during the confirm window
+    var cb = $('confirmbar');
+    if (banner) {
+      var secs = Math.max(0, Math.ceil(banner.left / 1000));
+      var ct = $('confirmtext');
+      ct.textContent = '';
+      ct.appendChild(document.createTextNode('Moving ' + hazItem(banner.h, byMark) + ' to ' + pretty(banner.h.to || 'safe tray') + ' in '));
+      ct.appendChild(el('span', 'cd', String(secs)));
+      ct.appendChild(document.createTextNode('…'));
+      cb.className = 'on';
+      $('confirmcancel').disabled = labBusy.stop;
+    } else cb.className = '';
+
+    // experiment card
+    var uc = L.use_case, ucb = $('usecase');
+    ucb.textContent = '';
+    $('ucconf').textContent = '';
+    if (!main) ucb.appendChild(el('div', 'empty', 'no inspection yet'));
+    else if (!uc || typeof uc !== 'object') ucb.appendChild(el('div', 'empty', TERMINAL[planState(main)] ? 'no experiment identified' : 'working out the experiment…'));
+    else if (!uc.id || uc.id === 'unknown' || (!uc.title && !USE_CASES[uc.id])) {
+      ucb.appendChild(el('div', 'unk', 'Unknown setup: general notes only'));
+    } else {
+      var ref = USE_CASES[uc.id] || {};
+      ucb.appendChild(el('div', 'uct', uc.title || ref.title || pretty(uc.id)));
+      var conf = uc.confidence, confT = null;
+      if (typeof conf === 'number' && isFinite(conf)) confT = (conf <= 1 ? Math.round(conf * 100) : Math.round(conf)) + '%';
+      else if (conf) confT = String(conf);
+      var cc = el('div', 'ucc');
+      if (confT) { cc.appendChild(document.createTextNode('confidence ')); cc.appendChild(el('b', null, confT)); }
+      if (uc.confirmed === true || (L.answer && L.answer.confirmed === true)) cc.appendChild(el('b', null, (confT ? ' · ' : '') + 'confirmed by you ✓'));
+      ucb.appendChild(cc);
+      if (confT) $('ucconf').textContent = confT;
+      var missing = Array.isArray(uc.missing) ? uc.missing : [];
+      var seen = {};
+      (mItems.length ? mItems : S.labItems).forEach(function (it) { seen[it.item] = true; });
+      var needs = Array.isArray(uc.needs) ? uc.needs : (ref.needs || null);
+      var present = Array.isArray(uc.present) ? uc.present : (needs ? needs.filter(function (n) { return missing.indexOf(n) < 0; }) : Object.keys(seen));
+      var tools = el('div', 'tools');
+      present.forEach(function (n) { tools.appendChild(el('span', 'tool have', '✓ ' + pretty(n))); });
+      missing.forEach(function (n) { tools.appendChild(el('span', 'tool miss', '✗ ' + pretty(n))); });
+      var opt = Array.isArray(uc.optional) ? uc.optional : (ref.optional || []);
+      opt.forEach(function (n) { if (present.indexOf(n) < 0 && missing.indexOf(n) < 0) tools.appendChild(el('span', 'tool opt', (seen[n] ? '✓ ' : '○ ') + pretty(n) + ' (optional)')); });
+      ucb.appendChild(tools);
+      ucb.appendChild(el('div', 'missline' + (missing.length ? '' : ' ok'), missing.length ? 'Missing: ' + missing.map(pretty).join(', ') : 'All required tools present ✓'));
+    }
+
+    // the question
+    var qb = $('qbox'), mst = planState(main);
+    var awaiting = !!main && /^awaiting/.test(mst);
+    var qtext = L.question ? String(L.question) : '';
+    if (main && (qtext || awaiting)) {
+      var ans = L.answer;
+      var ansText = ans && typeof ans === 'object' ? (ans.text || L.answer_text || ans.experiment || '') : (ans ? String(ans) : (L.answer_text || ''));
+      qb.className = 'subpanel on' + (awaiting ? '' : ' answered');
+      $('labq').textContent = qtext || '(question not received yet)';
+      $('qstate').textContent = awaiting ? 'waiting for your answer' : (ansText ? 'answered' : '');
+      var given = $('labgiven');
+      given.textContent = ansText ? 'You said: “' + ansText + '”' : '';
+      if (ans && typeof ans === 'object' && ans.experiment && ans.experiment !== ansText && ans.experiment !== 'unknown') given.textContent += ' · experiment: ' + ans.experiment;
+      if (ans && typeof ans === 'object' && ans.phase && ans.phase !== 'unknown') given.textContent += ' · phase: ' + pretty(ans.phase);
+      $('answerbtn').disabled = labBusy.answer || !awaiting;
+      if (awaiting && !focusedQ[main.plan_id] && document.activeElement !== $('labans')) {
+        focusedQ[main.plan_id] = true;
+        try { $('labans').focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+      }
+    } else qb.className = 'subpanel';
+
+    // fetch card
+    var fbx = $('fetchbox');
+    if (fp) {
+      var FL = labOf(fp), fst = planState(fp);
+      var fitem = fetchItemOf(fp);
+      fbx.className = 'subpanel on' + (/fail|error/.test(fst) ? ' f-failed' : (/^(done|ok|complete)/.test(fst) ? ' f-done' : ''));
+      $('fetchid').textContent = fp.plan_id;
+      var fl = $('fetchline');
+      fl.textContent = '';
+      fl.appendChild(el('span', null, pretty(fitem) + ' → ' + pretty(FL.to || 'handover')));
+      var fb = labBadge(fst);
+      fl.appendChild(el('span', 'badge ls ' + fb[0], fb[1]));
+      if (fp.steps.length) {
+        var pills = el('span', 'steppills');
+        fp.steps.forEach(function (s, i) {
+          var sc = stepClass(fp, s, i);
+          pills.appendChild(el('span', 'badge ' + (sc[0] === 'done' ? 'b-sent' : sc[0] === 'failed' ? 'b-dead' : sc[0] === 'running' ? 'b-busy' : 'b-idle'),
+            sc[1] + ' ' + labStepLabel(s)));
+        });
+        fl.appendChild(pills);
+      }
+      var fr = $('fetchres');
+      var stepErr = fp.steps.map(function (s) {
+        var r = resultText(s && (s.error || s.reason || (/fail/.test(String(s.state)) ? s.result : null)));
+        return r ? r.text : null;
+      }).filter(Boolean)[0];
+      if (/fail|error/.test(fst)) { fr.className = 'bad'; fr.textContent = fp.error || fp.reason || FL.error || FL.message || stepErr || 'fetch failed'; }
+      else if (/^(done|ok|complete)/.test(fst)) { fr.className = 'ok'; fr.textContent = '✓ ' + (FL.message || (typeof FL.report === 'string' && FL.report) || (pretty(fitem) + ' is on the handover spot')); }
+      else if (/cancel/.test(fst)) { fr.className = ''; fr.textContent = 'stopped'; }
+      else { fr.className = ''; fr.textContent = FL.message || (prov.length ? '' : 'waiting for an arm (arm.cell unplugged)'); }
+    } else fbx.className = 'subpanel';
+
+    // the report: live tokens (with handoff markers) once the report job is known, else the plan's text
+    var rb = $('reportbox'), rep = $('labreport');
+    var rid = main ? reportJobId(main) : null;
+    var rj = rid ? S.jobs[rid] : null;
+    if (rid) S.labJobs[rid] = true;
+    var reportText = typeof L.report === 'string' ? L.report : (L.report && (L.report.text || L.report.answer)) || '';
+    $('reportjob').textContent = rid ? rid + (rj && rj.node_id ? ' · ' + rj.node_id : '') : '';
+    if (rj && (Object.keys(rj.tokens).length || rj.answer || rj.handoffs.length)) {
+      var rdone = rj.state === 'done' || (!!reportText && !!TERMINAL[mst]);
+      rb.className = 'subpanel ' + (rdone ? 'done' : 'streaming');
+      fillJob(rep, rj, rdone);
+    } else if (reportText) {
+      rb.className = 'subpanel done';
+      rep.textContent = reportText;
+      rep.appendChild(el('span', 'donemark', '■ done'));
+    } else if (main && !TERMINAL[mst] && (/report/.test(mst) || rid)) {
+      rb.className = 'subpanel streaming';
+      rep.textContent = '';
+      rep.appendChild(el('span', 'placeholder', 'Gemma is writing the report…'));
+      rep.appendChild(el('span', 'cursor'));
+    } else {
+      rb.className = 'subpanel';
+      rep.textContent = '';
+      rep.appendChild(el('span', 'placeholder', awaiting ? 'Answer the question above and the report streams here.' : 'The final report streams here after you answer the question.'));
+    }
+
+    // arm.cell.<id>.state cards; UNPLUGGED once the publishing node stops advertising arm.cell
+    var ab = $('labarms');
+    ab.textContent = '';
+    var provIds = {};
+    prov.forEach(function (n) { provIds[n.node_id] = true; });
+    var armTopics = Object.keys(S.arms).filter(function (t) { return /^arm\.cell(\.|$)/.test(t); }).sort();
+    armTopics.forEach(function (topic) {
+      ab.appendChild(armCard(topic, S.arms[topic], function (bd, a, rec, card) {
+        if (rec.origin && S.nodesInit && !provIds[rec.origin]) {
+          bd.appendChild(el('span', 'badge b-unplugged', S.nodes[rec.origin] && S.nodes[rec.origin].alive === false ? 'HOST DOWN' : 'UNPLUGGED'));
+          card.classList.add('stale');
+        }
+      }));
+    });
+    if (!armTopics.length) ab.appendChild(el('div', 'empty', 'no arm.cell telemetry'));
+    $('labarmcount').textContent = armTopics.length ? armTopics.length + ' arm' + (armTopics.length === 1 ? '' : 's') : '';
+  }
+  // the countdown ticks while a confirm window is open
+  setInterval(function () { if ($('confirmbar').className === 'on' || /CONFIRMING/.test($('hazards').textContent)) { render.lab = true; schedule(); } }, 200);
+
+  // ---------------------------------------------------------------- LabMate actions (same peer fallback as Ask/Build)
+  var labBusy = { inspect: false, fetch: false, answer: false, stop: false };
+  function labPlaceholder(r, base) {
+    var pid = r && (r.plan_id || (r.plan && r.plan.plan_id));
+    if (r && r.plan && r.plan.plan_id) onPlan(r.plan, true, true);
+    // placeholder until plan.new arrives; no leader here, so it can't fake a "handed over" marker
+    else if (pid && !S.plans[pid]) onPlan(Object.assign({ plan_id: pid, steps: [], job_id: r.job_id }, base, { state: r.state || base.state }), true, true);
+    else if (pid) { S[isFetchPlan(S.plans[pid]) ? 'labFetchId' : 'labMainId'] = pid; render.lab = true; schedule(); }
+    return pid;
+  }
+  function viaText(r, host, pid) {
+    return (pid ? 'plan ' + pid + ' ' : '') + 'via ' + hostLabel(host) + ((r && (r.leader_id || r.leader)) ? ' → leader ' + (r.leader_id || r.leader) : '');
+  }
+  function swarmSaidNo(r, msg) {   // a 200 that still says no (e.g. "I can't see a multimeter")
+    if (r && typeof r === 'object' && (r.ok === false || (r.error && !r.plan_id))) {
+      msg.className = 'err'; msg.textContent = String(r.error || r.detail || r.message || 'refused');
+      return true;
+    }
+    return false;
+  }
+  $('inspectbtn').addEventListener('click', function () {
+    if (labBusy.inspect) return;
+    labBusy.inspect = true; render.lab = true; schedule();
+    var msg = $('labmsg');
+    postAny('/lab/inspect', {}, msg, function (r, host) {
+      labBusy.inspect = false;
+      if (!swarmSaidNo(r, msg)) {
+        var pid = labPlaceholder(r, { goal: 'inspect the bench', kind: 'lab', state: 'labelling', lab: { mode: 'inspect' } });
+        msg.className = 'ok'; msg.textContent = 'inspect requested: ' + viaText(r, host, pid);
+      }
+      render.lab = true; schedule();
+    }, function () { labBusy.inspect = false; render.lab = true; schedule(); });
+  });
+  $('fetchitem').addEventListener('change', function () { render.lab = true; schedule(); });
+  $('fetchform').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var item = $('fetchitem').value;
+    if (!item || labBusy.fetch) return;
+    labBusy.fetch = true; render.lab = true; schedule();
+    var msg = $('labmsg');
+    postAny('/lab/fetch', { item: item }, msg, function (r, host) {
+      labBusy.fetch = false;
+      if (!swarmSaidNo(r, msg)) {
+        var pid = labPlaceholder(r, { goal: 'fetch ' + item, kind: 'lab', state: 'locating', lab: { mode: 'fetch', fetch: item } });
+        msg.className = 'ok'; msg.textContent = 'fetch ' + pretty(item) + ': ' + viaText(r, host, pid);
+      }
+      render.lab = true; schedule();
+    }, function () { labBusy.fetch = false; render.lab = true; schedule(); });
+  });
+  $('answerform').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var text = $('labans').value.trim();
+    var main = S.plans[S.labMainId];
+    if (!text || labBusy.answer) return;
+    labBusy.answer = true; render.lab = true; schedule();
+    var msg = $('labmsg');
+    postAny('/lab/answer', { text: text, plan_id: main ? main.plan_id : undefined }, msg, function (r, host) {
+      labBusy.answer = false;
+      if (!swarmSaidNo(r, msg)) {
+        msg.className = 'ok'; msg.textContent = 'answer sent ' + viaText(r, host, r && r.plan_id);
+        $('labans').value = '';
+        if (r && r.plan_id && r.state && r.lab) onPlan(r, true, false);
+      }
+      render.lab = true; schedule();
+    }, function () { labBusy.answer = false; render.lab = true; schedule(); });
+  });
+  function labStop(p) {
+    if (!p || labBusy.stop) return;
+    labBusy.stop = true; render.lab = true; schedule();
+    var msg = $('labmsg');
+    postAny('/cell/plans/' + encodeURIComponent(p.plan_id) + '/cancel', {}, msg, function (r, host) {
+      labBusy.stop = false;
+      msg.className = 'ok'; msg.textContent = 'stop sent for plan ' + p.plan_id + ' via ' + hostLabel(host);
+      if (r && r.plan_id && r.state) onPlan(r, true, false);
+      render.lab = true; schedule();
+    }, function () { labBusy.stop = false; render.lab = true; schedule(); });
+  }
+  $('labstop').addEventListener('click', function () { labStop(activeLabPlan()); });
+  $('confirmcancel').addEventListener('click', function () { labStop(S.plans[S.labMainId]); });
 
   // ---------------------------------------------------------------- clock + boot
   setInterval(function () { $('clock').textContent = hhmmss(now()); }, 1000);

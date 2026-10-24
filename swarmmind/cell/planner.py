@@ -19,6 +19,12 @@ Plan state machine (driven by the leader only, every transition broadcast as `pl
 
 Every node keeps a replica of every plan (`plan.new` / `plan.update`, plus `plans` in sync.resp);
 replicas merge by (term, rev). On becoming leader a node resumes every unfinished plan.
+
+Other plan kinds (e.g. LabMate, swarmmind/cell/labmate.py) share this replication, resume and cancel
+machinery: `Plan.kind` names the kind and `register_kind(kind, driver, on_cancel)` plugs in its
+leader-side driver, called with (plan, term) until the plan is finished or idle. States in
+IDLE_STATES (waiting for a human, nothing moving) keep a plan unfinished but neither block new
+plans nor block a higher-ranked leader from taking over.
 """
 from __future__ import annotations
 
@@ -28,7 +34,7 @@ import re
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from ..logutil import get_logger
 from ..protocol import PLAN_NEW, PLAN_SYSTEM_PROMPT, PLAN_UPDATE, VERIFY_SYSTEM_PROMPT
@@ -44,6 +50,7 @@ PLAN_RETRIES = 2          # re-plan this many times after invalid output (3 atte
 STEP_RETRIES = 1          # retry a failed arm task / verify job this many times
 VERIFY_REDOS = 1          # after a failed verify, re-run the preceding pick/place this many times
 TERMINAL = ("done", "failed", "cancelled")
+IDLE_STATES = ("awaiting_answer",)   # unfinished, but the cell is free (a human has to answer)
 MAX_PLANS = 30
 
 POLL_S = 0.1
@@ -297,6 +304,8 @@ class Plan:
     rev: int = 0                            # bumped on every update; replicas keep max (term, rev)
     created_ts: float = 0.0
     updated_ts: float = 0.0
+    kind: str = "cell"                      # cell (goal -> pick/place plan) | lab (LabMate)
+    lab: dict = field(default_factory=dict)  # LabMate state (docs/LABMATE.md); empty for cell plans
 
     def wire(self) -> dict[str, Any]:
         return asdict(self)
@@ -307,11 +316,16 @@ class Plan:
         p = cls(**{k: v for k, v in d.items() if k in fields})
         p.steps = [dict(s) for s in (p.steps or [])]
         p.errors = list(p.errors or [])
+        p.lab = dict(p.lab or {})
         return p
 
     @property
     def finished(self) -> bool:
         return self.state in TERMINAL
+
+    @property
+    def idle(self) -> bool:
+        return self.state in IDLE_STATES
 
     def key(self) -> tuple[int, int]:
         return (int(self.term), int(self.rev))
@@ -323,6 +337,15 @@ class PlanManager:
         self.plans: dict[str, Plan] = {}
         self.order: list[str] = []
         self.drivers: dict[str, asyncio.Task] = {}     # plan_id -> leader-side driver task
+        # other plan kinds: kind -> async driver(plan, term), and kind -> on_cancel(plan)
+        self.kind_drivers: dict[str, Callable[[Plan, int], Awaitable[None]]] = {}
+        self.kind_cancel: dict[str, Callable[[Plan], None]] = {}
+
+    def register_kind(self, kind: str, driver: Callable[["Plan", int], Awaitable[None]],
+                      on_cancel: Callable[["Plan"], None] | None = None) -> None:
+        self.kind_drivers[kind] = driver
+        if on_cancel is not None:
+            self.kind_cancel[kind] = on_cancel
 
     # ------------------------------------------------------------------ config / perception
     @property
@@ -379,7 +402,9 @@ class PlanManager:
         return [self.plans[p].wire() for p in self.order]
 
     def active(self) -> Plan | None:
-        return next((self.plans[p] for p in self.order if not self.plans[p].finished), None)
+        """The plan holding the cell (unfinished and not idle-waiting for a human)."""
+        return next((self.plans[p] for p in self.order
+                     if not self.plans[p].finished and not self.plans[p].idle), None)
 
     def has_active(self) -> bool:
         return self.active() is not None
@@ -443,9 +468,12 @@ class PlanManager:
     def resume_all(self) -> None:
         for pid in list(self.order):
             plan = self.plans[pid]
-            if not plan.finished and not self._driving(pid):
-                where = (f"step {plan.step + 1}/{len(plan.steps)}" if plan.state == "running"
-                         else f"{plan.state} (job {plan.job_id})")
+            if not plan.finished and not plan.idle and not self._driving(pid):
+                if plan.kind != "cell":
+                    where = f"{plan.state} (step {plan.step + 1}/{max(len(plan.steps), 1)})"
+                else:
+                    where = (f"step {plan.step + 1}/{len(plan.steps)}" if plan.state == "running"
+                             else f"{plan.state} (job {plan.job_id})")
                 self.node.event(f"plan {pid}: resuming on {self.node.cfg.node_id} at {where}")
                 self._start(plan)
 
@@ -471,6 +499,12 @@ class PlanManager:
             if s.get("state") in ("running", "pending"):
                 s["state"] = "cancelled"
         plan.state = "cancelled"
+        hook = self.kind_cancel.get(plan.kind)
+        if hook is not None:
+            try:
+                hook(plan)
+            except Exception:  # noqa: BLE001 - cosmetic bookkeeping must not block a cancel
+                log.exception("plan %s: cancel hook failed", plan_id)
         self._update(plan, n.election.term, "cancelled by operator"
                      + (f" (stopped task {', '.join(stopped)})" if stopped else ""), level="warning")
         return True
@@ -516,6 +550,15 @@ class PlanManager:
                 if plan is None or plan.finished:
                     return
                 self._guard(term)
+                if plan.idle:
+                    return                       # waiting for a human; a new request restarts it
+                if plan.kind != "cell":
+                    driver = self.kind_drivers.get(plan.kind)
+                    if driver is None:
+                        self._fail(plan, term, f"no driver for plan kind {plan.kind!r} on this node")
+                    else:
+                        await driver(plan, term)
+                    continue
                 if plan.state == "planning":
                     await self._do_planning(plan, term)
                 elif plan.state == "validating":

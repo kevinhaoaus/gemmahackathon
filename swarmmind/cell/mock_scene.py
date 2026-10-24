@@ -8,6 +8,17 @@ camera is a mild keystone + jitter perspective over the table, rendered 2x super
 blurred, lit unevenly, noised and JPEG-compressed, so the detector and the homography get a
 realistic workout. Objects not listed in `object_poses` get the defaults below, so the example
 cell in docs/ROBOT_CELL.md works out of the box.
+
+Untagged lab items (docs/LABMATE.md) are drawn to scale in the table plane:
+
+    jpeg, truth = render(cell_cfg, poses, items=[{"item": "superglue", "table_xy": [0.5, 0.2],
+                                                   "yaw_deg": 0, "state": "open"}])
+
+items=None draws DEFAULT_ITEMS, items=[] the empty table (what LabMate uses as its background).
+An item's pose is the centre of its footprint's bounding box plus its long axis (local +x);
+truth["items"] lists each with its name, footprint length/width and state. Kinds: screwdriver,
+file, spring, superglue (state "open" = no cap) and stepper_motor. `gain` scales the whole frame
+(a webcam's auto-exposure).
 """
 from __future__ import annotations
 
@@ -30,6 +41,18 @@ DEFAULT_POSES = {"servo_1": [0.20, 0.15, 0.0], "so101_slot_1": [0.42, 0.24, 25.0
 # footprint (w, h) in metres and BGR colour of the thing each tag sits on
 FOOTPRINT = {"part": ((0.060, 0.052), (120, 70, 40)), "slot": ((0.095, 0.065), (95, 95, 95)),
              "fixture": ((0.120, 0.090), (175, 175, 165))}
+# LabMate fixtures (docs/LABMATE.md), clear of the default items below
+DEFAULT_POSES.update({"safe_tray": [0.57, 0.30, 0.0], "handover": [0.32, 0.05, 0.0]})
+
+# untagged items: footprint (length along the long axis, width) in metres
+ITEM_SIZE = {"screwdriver": (0.180, 0.026), "file": (0.200, 0.022), "spring": (0.050, 0.016),
+             "superglue": (0.028, 0.028), "stepper_motor": (0.042, 0.042)}
+DEFAULT_ITEMS = [
+    {"item": "screwdriver", "table_xy": [0.46, 0.075], "yaw_deg": 8.0, "state": None},
+    {"item": "file", "table_xy": [0.33, 0.355], "yaw_deg": -4.0, "state": None},
+    {"item": "spring", "table_xy": [0.095, 0.105], "yaw_deg": 60.0, "state": None},
+    {"item": "superglue", "table_xy": [0.53, 0.20], "yaw_deg": 0.0, "state": "open"},
+]
 _DICT = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_APRILTAG_36h11)
 _MARKERS: dict[int, np.ndarray] = {}
 
@@ -108,13 +131,127 @@ def _rect(x: float, y: float, yaw: float, w: float, h: float) -> np.ndarray:
     return (local @ _pose_mat(x, y, yaw).T)[:, :2]
 
 
+# ---------------------------------------------------------------- untagged items
+
+def _local(pts: Iterable, x: float, y: float, yaw: float) -> np.ndarray:
+    """Item-local metres (long axis +x) -> table metres."""
+    p = np.asarray(pts, dtype=np.float64).reshape(-1, 2)
+    return (np.hstack([p, np.ones((len(p), 1))]) @ _pose_mat(x, y, yaw).T)[:, :2]
+
+
+def _circle(cx: float, cy: float, r: float, n: int = 48) -> np.ndarray:
+    a = np.linspace(0, 2 * math.pi, n, endpoint=False)
+    return np.c_[cx + r * np.cos(a), cy + r * np.sin(a)]
+
+
+def _box(x0: float, x1: float, w0: float, w1: float | None = None, y: float = 0.0) -> np.ndarray:
+    """Local quad from x0 to x1 centred on y, width w0 at x0 tapering to w1 at x1."""
+    w1 = w0 if w1 is None else w1
+    return np.array([[x0, y - w0 / 2], [x1, y - w1 / 2], [x1, y + w1 / 2], [x0, y + w0 / 2]])
+
+
+def _stroke(p: np.ndarray, q: np.ndarray, t: float) -> np.ndarray:
+    """A straight line of width t as a quad (exact under the camera's perspective)."""
+    d = q - p
+    n = np.array([-d[1], d[0]]) / max(float(np.linalg.norm(d)), 1e-9) * t / 2
+    return np.array([p + n, q + n, q - n, p - n])
+
+
+def item_shapes(item: str, state: str | None = None) -> list[tuple[np.ndarray, tuple]]:
+    """[(local polygon in metres, BGR)] drawn in order; the union's bounding box is ITEM_SIZE,
+    centred on the origin, long axis along +x."""
+    out: list[tuple[np.ndarray, tuple]] = []
+    if item == "screwdriver":
+        L, W = ITEM_SIZE[item]
+        r = W / 2
+        back = -L / 2 + r
+        cap = [[back + r * math.cos(a), r * math.sin(a)] for a in np.linspace(math.pi / 2, 1.5 * math.pi, 16)]
+        out.append((np.array(cap + [[-0.003, -W / 2], [0.005, -0.008], [0.005, 0.008], [-0.003, W / 2]]),
+                    (40, 45, 205)))                                           # red handle
+        for gy in (-0.0065, 0.0, 0.0065):                                    # black grip ribs
+            out.append((_box(back - 0.004, -0.012, 0.0028, y=gy), (25, 25, 30)))
+        out.append((_box(0.005, 0.016, 0.011, 0.009), (175, 175, 180)))     # ferrule
+        out.append((_box(0.016, L / 2 - 0.004, 0.006), (100, 102, 108)))    # shaft
+        out.append((_box(0.016, L / 2 - 0.006, 0.001, y=0.001), (205, 205, 210)))     # highlight
+        out.append((_box(L / 2 - 0.004, L / 2, 0.006, 0.0075), (95, 95, 100)))      # flat tip
+    elif item == "file":
+        L, W = ITEM_SIZE[item]
+        x_h = -L / 2 + 0.045
+        out.append((_box(-L / 2, x_h - 0.004, 0.018, 0.016), (35, 70, 115)))      # wooden handle
+        out.append((_box(x_h - 0.006, x_h, 0.010), (150, 150, 150)))             # ferrule
+        out.append((_box(x_h, L / 2 - 0.02, W), (108, 108, 112)))                # blade
+        out.append((_box(L / 2 - 0.02, L / 2, W, 0.014), (108, 108, 112)))       # tapered tip
+        x = x_h + 0.002
+        while x < L / 2 - 0.03:                                                   # cross hatching
+            for sgn in (1, -1):
+                p = np.array([x, -W / 2 + 0.0015])
+                q = np.array([x + sgn * 0.006, W / 2 - 0.0015])
+                if q[0] > x_h:
+                    out.append((_stroke(p, q, 0.0008), (62, 62, 66)))
+            x += 0.004
+    elif item == "spring":
+        L, W = ITEM_SIZE[item]
+        t = 0.0016
+        D = W - t
+        n = 9
+        xs = np.linspace(-L / 2 + t / 2, L / 2 - t / 2, 2 * n + 1)
+        for shade, phase in (((55, 58, 62), 1.0), ((95, 98, 104), -1.0)):     # back, then front
+            pts = [np.array([xv, phase * (D / 2 if k % 2 else -D / 2)]) for k, xv in enumerate(xs)]
+            for p, q in zip(pts, pts[1:]):
+                out.append((_stroke(p, q, t), shade))
+        for xe in (xs[0], xs[-1]):                                            # closed end coils
+            out.append((_stroke(np.array([xe, -D / 2]), np.array([xe, D / 2]), t), (80, 82, 88)))
+    elif item == "superglue":
+        r = ITEM_SIZE[item][0] / 2
+        out.append((_circle(0, 0, r), (175, 95, 25)))                         # blue body
+        out.append((_circle(0, 0, r * 0.62), (235, 235, 235)))                # white shoulder
+        if state == "open":
+            out.append((_circle(0, 0, 0.0045), (250, 250, 250)))              # bare nozzle
+            out.append((_circle(0, 0, 0.0013, 16), (30, 30, 30)))             # its hole
+            out.append((_circle(0.0035, 0.002, 0.0016, 16), (200, 230, 240)))  # a glue drop
+        else:
+            out.append((_circle(0, 0, 0.0078), (0, 125, 255)))                # orange cap
+            out.append((_circle(-0.002, 0.002, 0.0025, 16), (90, 190, 255)))  # its shine
+    elif item == "stepper_motor":
+        h, c = ITEM_SIZE[item][0] / 2, 0.005
+        out.append((np.array([[-h + c, -h], [h - c, -h], [h, -h + c], [h, h - c], [h - c, h],
+                              [-h + c, h], [-h, h - c], [-h, -h + c]]), (42, 42, 48)))   # body
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                out.append((_circle(sx * 0.0155, sy * 0.0155, 0.0016, 16), (140, 140, 145)))
+        out.append((_circle(0, 0, 0.011), (92, 92, 98)))                     # boss
+        out.append((_circle(0, 0, 0.0025, 24), (205, 205, 210)))             # shaft
+        out.append((_box(0.0008, 0.0025, 0.0045), (150, 150, 155)))          # its D flat
+    else:
+        raise ValueError(f"unknown mock item {item!r} (want one of {sorted(ITEM_SIZE)})")
+    return out
+
+
+def normalize_items(items: Iterable[dict] | None) -> list[dict]:
+    """Copies with name (default: the item kind, then kind_2, kind_3 ...), table_xy, yaw_deg,
+    state. None -> DEFAULT_ITEMS."""
+    out, seen = [], {}
+    for it in (DEFAULT_ITEMS if items is None else items):
+        kind = str(it["item"])
+        if kind not in ITEM_SIZE:
+            raise ValueError(f"unknown mock item {kind!r} (want one of {sorted(ITEM_SIZE)})")
+        seen[kind] = seen.get(kind, 0) + 1
+        name = str(it.get("name") or (kind if seen[kind] == 1 else f"{kind}_{seen[kind]}"))
+        out.append({"name": name, "item": kind, "table_xy": [float(v) for v in it["table_xy"][:2]],
+                    "yaw_deg": float(it.get("yaw_deg") or 0.0), "state": it.get("state") or None})
+    return out
+
+
 def render(cell_cfg: dict | None = None, object_poses: dict | None = None, *,
            size: tuple[int, int] = SIZE, warp: float = 0.06, seed: int = 0, noise: float = 3.0,
            blur: float = 0.8, occlude: Iterable[int] = (), hide: Iterable[int] = (),
-           quality: int = 88) -> tuple[bytes, dict]:
+           quality: int = 88, items: Iterable[dict] | None = None,
+           gain: float = 1.0) -> tuple[bytes, dict]:
     """-> (jpeg, ground_truth). `hide`: tag ids not drawn at all. `occlude`: tag ids drawn but
-    covered by a "hand". ground_truth = {table_to_px, tags: {id: {table_xy, yaw_deg, px}},
-    objects: {name: {tag, kind, table, yaw_deg}}, visible_tags}."""
+    covered by a "hand". `items`: untagged items (None = DEFAULT_ITEMS, [] = the empty table).
+    ground_truth = {table_to_px, tags: {id: {table_xy, yaw_deg, px}},
+    objects: {name: {tag, kind, table, yaw_deg}}, visible_tags,
+    items: [{name, item, state, table_xy, yaw_deg, length_m, width_m}]}."""
     cell = normalize_cell(cell_cfg if cell_cfg is not None else DEFAULT_CELL)
     size_m = cell["tag_size_m"] or 0.04
     G = camera_homography(cell, size, warp, seed)                        # table -> final px
@@ -147,6 +284,14 @@ def render(cell_cfg: dict | None = None, object_poses: dict | None = None, *,
         (fw, fh), col = FOOTPRINT.get(o["kind"], FOOTPRINT["part"])
         _poly(canvas, Gs, _rect(tag_xy[0], tag_xy[1], yaw, fw, fh), col)
 
+    truth_items = []
+    for it in normalize_items(items):
+        (x, y), yaw = it["table_xy"], it["yaw_deg"]
+        for poly, col in item_shapes(it["item"], it["state"]):
+            _poly(canvas, Gs, _local(poly, x, y, yaw), col)
+        ln, wd = ITEM_SIZE[it["item"]]
+        truth_items.append({**it, "length_m": ln, "width_m": wd})
+
     hide, occlude = set(hide), set(occlude)
     patch_m = size_m * 10 / 8                                          # marker + quiet zone
     truth_tags = {}
@@ -168,7 +313,7 @@ def render(cell_cfg: dict | None = None, object_poses: dict | None = None, *,
 
     img = cv2.resize(canvas, (w, h), interpolation=cv2.INTER_AREA)
     # uneven lighting, lens blur, sensor noise
-    img = img.astype(np.float32) * _light(w, h)
+    img = img.astype(np.float32) * (_light(w, h) * np.float32(gain))
     if blur > 0:
         img = cv2.GaussianBlur(img, (0, 0), blur)
     if noise > 0:
@@ -179,4 +324,4 @@ def render(cell_cfg: dict | None = None, object_poses: dict | None = None, *,
         raise ValueError("JPEG encode failed")
     visible = sorted(t for t in tags if t not in hide and t not in occlude)
     return buf.tobytes(), {"table_to_px": G.tolist(), "tags": truth_tags, "objects": truth_objs,
-                           "visible_tags": visible}
+                           "visible_tags": visible, "items": truth_items}

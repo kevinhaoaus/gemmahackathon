@@ -23,9 +23,12 @@ vision_mode: native        # native = the LLM sees the image itself
 detector_model: ""         # no EdgeTPU on the laptop
 detector_model_cpu: ""     # optional plain .tflite detector; "" = none needed in native mode
 detector_labels: ""        # COCO labels file for the optional detector
-# Android phone running the "IP Webcam" app. Replace 192.168.1.50 with the
-# phone's IP (shown in the app); the phone must be on the same LAN/hotspot.
-camera_url: "http://192.168.1.50:8080/shot.jpg"
+# Workspace webcam "webcam AC310" (USB VID_5843 PID_E819), overhead on the bench. With DirectShow it is
+# index 1 (1920x1080 MJPG ~29.5 fps); index 0 = the laptop's integrated camera (shutter closed, black),
+# index 2 = OBS Virtual Camera (fake). The index SHIFTS when cameras are added or removed: re-probe with
+#   .venv\Scripts\python -c "import cv2; [print(i, cv2.VideoCapture(i, cv2.CAP_DSHOW).read()[0]) for i in range(4)]"
+# (prints True for every index that delivers frames) and fix the number below.
+camera_url: "usb:1?w=1920&h=1080"
 
 # --- network (LAN only) -----------------------------------------------------
 # Unicast heartbeat + peer bus targets, "ip:http_port[:udp_port]". Needed when the
@@ -42,8 +45,63 @@ takeover_stable_s: 3.0     # a higher-ranked node must be stable this long befor
 startup_grace_s: 1.0       # listen this long before claiming leadership
 
 # --- task bus ---------------------------------------------------------------
-capabilities: []           # extra capabilities (e.g. "arm.kinova"); llm/vision/camera are auto-added
-capability_config: {}      # per-capability settings, e.g. {"arm.so101": {"port": "COM5", "mock": false}}
+capabilities: ["vision.cell", "arm.cell"]   # the Legion is LabMate's eyes + hands (llm/vision/camera are auto-added)
+capability_config:
+  vision.cell:
+    source: node               # this node's camera (camera_url above): AprilTags -> cell.state, blobs -> cell.blobs
+    rate_hz: 2                 # frames processed per second
+  arm.cell:                    # reBot B601 on USB. Advertised only while connected and answering (plug-in detection)
+    driver: rebot
+    arm_id: rebot              # telemetry topic arm.cell.rebot.state
+    port: "COM5"               # Device Manager -> Ports (COM & LPT); changes if the USB cable moves to another port
+    # arm base in the TABLE frame: [x, y, yaw_deg, z_table] (metres / degrees). Measure: x, y of the base axis
+    # on the bench, yaw of the arm's +x axis from the table +x axis, z_table = bench surface in the arm frame.
+    base: [0.30, -0.10, 90.0, 0.0]
+    # safe bounds in the ARM base frame (metres); every target outside is refused before moving
+    workspace: {x: [0.08, 0.45], y: [-0.35, 0.35], z: [0.0, 0.35]}
+    fallback_to_mock: false    # never pretend: an arm that fails to connect stays unavailable
+  # robot cell / LabMate layout (docs/ROBOT_CELL.md, docs/LABMATE.md): IDENTICAL on every node, so any
+  # leader can run LabMate. Measure tag_size_m and table_tags on the real bench (metres, table frame).
+  cell:
+    tag_size_m: 0.04                   # printed black-square edge length
+    table_tags: {0: [0.0, 0.0], 1: [0.60, 0.0], 2: [0.60, 0.40], 3: [0.0, 0.40]}   # bench corners, id: [x, y]
+    objects:
+      # The printed sheet has only tags 0-3 (bench corners), 10 and 11 (plus loose copies of 0 and 3),
+      # not the 30/31 of docs/LABMATE.md, so the real bench maps safe_tray -> tag 10, handover -> tag 11.
+      # The point is 7 cm from its tag so an item set down there never covers the tag.
+      safe_tray: {tag: 10, kind: fixture, offset: [0.07, 0.0, 0.0]}     # hazards go here
+      handover:  {tag: 11, kind: fixture, offset: [0.07, 0.0, 0.0]}     # fetched items go here
+    catalog:                           # LabMate (docs/LABMATE.md): everything Gemma may name. IDENTICAL on every node
+      items:                           # height = grip height above the table (m); grasp: across = across the long axis, none = never picked
+        screwdriver:    {kind: tool,       height: 0.012, grasp: across}
+        file:           {kind: tool,       height: 0.008, grasp: across}
+        spring:         {kind: part,       height: 0.010, grasp: center}
+        superglue:      {kind: consumable, height: 0.060, grasp: center}
+        stepper_motor:  {kind: part,       height: 0.030, grasp: center}
+        motor_driver:   {kind: part,       height: 0.015, grasp: center}
+        power_supply:   {kind: equipment,  height: 0.050, grasp: none}
+        multimeter:     {kind: tool,       height: 0.030, grasp: center}
+        ruler:          {kind: tool,       height: 0.003, grasp: across}
+        stand:          {kind: equipment,  height: 0.200, grasp: none}
+      hazards:                         # the 7 fixed types; movable = the arm may relocate it, else report only
+        open_container:    {movable: true,  severity: 3, fix: "cap it and move it away from electronics"}
+        item_near_edge:    {movable: true,  severity: 2, fix: "move it back from the bench edge"}
+        sharp_tool_loose:  {movable: true,  severity: 2, fix: "store the tool, tip away from people"}
+        clutter_in_path:   {movable: true,  severity: 1, fix: "clear the arm's working area"}
+        cable_near_motion: {movable: false, severity: 3, fix: "route the cable away from moving parts"}
+        hot_tool:          {movable: false, severity: 4, fix: "let it cool on its stand; do not touch"}
+        spill:             {movable: false, severity: 4, fix: "stop and clean the spill before power-on"}
+      use_cases:                       # experiments LabMate knows; anything else gets general notes only
+        spring_pendulum: {title: "Spring pendulum",    needs: [spring, stand, ruler],                                     optional: [multimeter]}
+        stepper_test:    {title: "Stepper motor test", needs: [stepper_motor, motor_driver, power_supply, screwdriver], optional: [multimeter]}
+        deburring:       {title: "Filing / deburring", needs: [file],                                                     optional: [screwdriver]}
+    labmate:                           # LabMate timing / geometry (defaults shown)
+      confirm_s: 5.0                   # announce a hazard move, then wait this long for POST /cell/plans/{id}/cancel
+      pass_gap_s: 1.0                  # the two labelling passes use camera frames at least this far apart
+      label_max_age_s: 10.0            # /lab/fetch re-labels when the agreed labels are older than this
+      tray_radius_m: 0.06              # a blob this close to the safe_tray point counts as inside the tray
+      slot_m: 0.035                    # spacing of per-item drop points so items in the tray don't stack
+      min_use_case_score: 0.5          # below this the experiment is "unknown" (general notes only)
 
 # --- store-and-forward uplink (LAN base station, never cloud) ---------------
 # Base station runs: python scripts/uplink_sink.py --port 8800 (here: on this Legion). Replace the IP.

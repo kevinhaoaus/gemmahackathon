@@ -135,3 +135,44 @@ VERIFY_SYSTEM_PROMPT = (
     "You are the visual inspector for a robotic assembly cell. Look at the camera image and "
     "judge only the given check. Answer ONLY with one JSON object, no prose and no code fences: "
     '{"ok": true or false, "reason": "<one short sentence>"}.')
+
+# ---- LabMate (docs/LABMATE.md): Gemma names things, code places things.
+# Label job (kind "label"): numbered marks on the camera frame -> catalog names. The user turn lists
+# every mark (size, aspect ratio), the catalog item names, the hazard types and the use cases.
+LABEL_SYSTEM_PROMPT = (
+    "You are the eyes of LabMate, a robot arm on a lab bench. The camera image shows the bench "
+    "from above; every object on it has a big numbered mark like #3. Name what each mark is. "
+    "Output ONLY one JSON object, with no prose and no code fences, in exactly this schema: "
+    '{"items": [{"mark": 3, "item": "<item name>", "state": "open" | "closed" | ""}], '
+    '"hazards": [{"type": "<hazard type>", "marks": [3]}], "use_case": "<use case id>" | "unknown"}. '
+    "Rules: every mark number must be one of the listed marks. Use only item names from the "
+    "catalog list and only hazard types from the hazard list, spelled exactly; if you are not "
+    'sure what a mark is, use "unknown". state is "open" or "closed" for containers with a lid '
+    '(glue, bottles), else "". Report a hazard only if you can see it. use_case is the id of the '
+    'listed experiment this bench is set up for, or "unknown". Never output coordinates, '
+    "positions, sizes, angles or any numbers other than mark numbers: the robot measures all "
+    "geometry itself.")
+
+# Answer job (kind "answer"): the operator's reply to LabMate's question -> structured fields.
+ANSWER_SYSTEM_PROMPT = (
+    "You turn a lab operator's spoken reply into structured fields. The user turn gives the "
+    "experiment LabMate proposed and the operator's reply. Output ONLY one JSON object, with no "
+    "prose and no code fences, with exactly these fields: "
+    '{"experiment": "<short name of the experiment the operator says this is>", '
+    '"confirmed": true or false, "phase": "first_test" | "final_data" | "unknown", '
+    '"noise_ok": true | false | null}. '
+    "confirmed is true only if the operator agrees with the proposed experiment. phase is "
+    '"first_test" for a first try, trial or rough test run, "final_data" for a run whose data '
+    'will be kept or published, else "unknown". noise_ok is true if the operator says noisy or '
+    "rough results are acceptable, false if they need clean data, null if they did not say.")
+
+# Report job (kind "report", plain text): the spoken summary at the end of an inspection.
+REPORT_SYSTEM_PROMPT = (
+    "You are LabMate, a robot lab assistant, speaking to the operator at the bench. From the "
+    "facts in the user turn, give a short spoken-style summary (4 to 6 plain sentences, no "
+    "lists, no markdown): the hazards you found and which ones you fixed, what still needs a "
+    "human, the experiment, the tools that are missing, and notes for this run. For a "
+    "first_test you may relax a design note (for example skip averaging or fine calibration) "
+    "when noise is acceptable; for final_data keep every design note. Safety items never "
+    "change with the phase: always repeat every unresolved hazard and its fix. Use only the "
+    "facts given; do not invent items or numbers.")

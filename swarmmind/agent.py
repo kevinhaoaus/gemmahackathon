@@ -20,6 +20,7 @@ from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 
+from .cell.labmate import LabError, LabMate
 from .cell.planner import PlanBusy, PlanError, PlanManager
 from .config import NodeConfig, load_config
 from .election import Election
@@ -30,7 +31,7 @@ from .protocol import (EVENT, JOB_DONE, JOB_HANDOFF, JOB_NEW, JOB_TOKEN, LEADER_
                        PLAN_UPDATE, REPORT_NEW, REPORT_SENT, SYNC_REQ, SYNC_RESP, TASK_ASSIGN,
                        TASK_CANCEL, TASK_PROGRESS, TASK_RESULT, TASK_SUBMIT, TOPIC_PUB, Envelope,
                        Heartbeat)
-from .tasks import REGISTRY, TaskManager, load_capability_modules
+from .tasks import REGISTRY, TaskManager, is_available, load_capability_modules
 from .topics import TopicBus
 from .transport import HeartbeatChannel, PeerBus
 from .uplink import Uplink
@@ -55,6 +56,10 @@ class Node:
         # robot cell seams (docs/ROBOT_CELL.md): set by the perception capability on the camera node
         self.cell_state: dict | None = None
         self.cell_annotated_jpeg: bytes | None = None
+        # LabMate seams (docs/LABMATE.md): latest cell.blobs dict + the frame with numbered marks
+        self.cell_blobs: dict | None = None
+        self.cell_marked_jpeg: bytes | None = None
+        self.lab = LabMate(self, self.plans)     # LabMate plans ride on the PlanManager
         # never preempt a leader mid-answer or mid-plan (an arm may be moving)
         self.election = Election(cfg, lambda: self.jobs.has_unfinished() or self.plans.has_active(),
                                  self._on_leader_change)
@@ -81,7 +86,7 @@ class Node:
         if self.cfg.camera_url:
             caps.append("camera")
         for c in self.cfg.capabilities:
-            if c not in caps:
+            if c not in caps and is_available(c):
                 caps.append(c)
         return caps
 
@@ -153,20 +158,27 @@ class Node:
 
     async def cell_frame(self, forwarded: bool = False) -> bytes | None:
         """Newest annotated cell frame: local perception, else fetched from a camera node."""
-        if self.cell_annotated_jpeg:
-            return self.cell_annotated_jpeg
+        return await self._cell_image(self.cell_annotated_jpeg, "/cell/frame.jpg", forwarded)
+
+    async def cell_marked(self, forwarded: bool = False) -> bytes | None:
+        """Newest frame with LabMate's numbered blob marks: local, else from a camera node."""
+        return await self._cell_image(self.cell_marked_jpeg, "/cell/marked.jpg", forwarded)
+
+    async def _cell_image(self, local: bytes | None, path: str, forwarded: bool) -> bytes | None:
+        if local:
+            return local
         if forwarded:                       # already a peer's fetch: never chain further
             return None
         for nid, ps in self.election.alive_peers().items():
             if "vision.cell" not in (ps.hb.capabilities or []):
                 continue
             try:
-                r = await self.http.get(f"http://{ps.hb.ip}:{ps.hb.http_port}/cell/frame.jpg",
+                r = await self.http.get(f"http://{ps.hb.ip}:{ps.hb.http_port}{path}",
                                         headers={FWD_HEADER: self.cfg.node_id}, timeout=2.0)
                 if r.status_code == 200 and r.content:
                     return r.content
             except httpx.HTTPError as e:
-                log.debug("cell frame from %s failed: %s", nid, e)
+                log.debug("%s from %s failed: %s", path, nid, e)
         return None
 
     # ------------------------------------------------------------------ membership / election
@@ -508,6 +520,51 @@ def build_app(node: Node) -> FastAPI:
         if jpeg is None:
             return Response(status_code=404)
         return Response(jpeg, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+
+    @app.get("/cell/marked.jpg")
+    async def cell_marked(request: Request) -> Response:
+        jpeg = await node.cell_marked(forwarded=bool(request.headers.get(FWD_HEADER)))
+        if jpeg is None:
+            return Response(status_code=404)
+        return Response(jpeg, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+
+    # ---- LabMate (docs/LABMATE.md); POST routes run on the leader (forwarded from any node)
+    async def lab_call(path: str, payload: dict, request: Request, fn) -> Response:
+        if not node.election.is_leader:
+            return await node.forward_to_leader(path, payload, request)
+        try:
+            plan = await fn()
+        except PlanBusy as e:
+            return JSONResponse({"error": str(e), "plan_id": e.plan_id}, status_code=409)
+        except LabError as e:
+            return JSONResponse({"error": str(e)}, status_code=e.status)
+        except PlanError as e:
+            return JSONResponse({"error": str(e)}, status_code=503)
+        return JSONResponse({"plan_id": plan.plan_id, "state": plan.state, "leader_id": node.cfg.node_id})
+
+    @app.post("/lab/inspect")
+    async def lab_inspect(request: Request) -> Response:
+        return await lab_call("/lab/inspect", {}, request, node.lab.inspect)
+
+    @app.post("/lab/answer")
+    async def lab_answer(request: Request) -> Response:
+        payload = await request.json()
+        text = str(payload.get("text", "")).strip()
+        if not text:
+            return JSONResponse({"error": "text is required"}, status_code=400)
+        return await lab_call("/lab/answer", {"text": text}, request, lambda: node.lab.answer(text))
+
+    @app.post("/lab/fetch")
+    async def lab_fetch(request: Request) -> Response:
+        payload = await request.json()
+        item = str(payload.get("item", "")).strip()
+        if not item:
+            return JSONResponse({"error": "item is required"}, status_code=400)
+        return await lab_call("/lab/fetch", {"item": item}, request, lambda: node.lab.fetch(item))
+
+    @app.get("/lab/state")
+    async def lab_state() -> dict:
+        return node.lab.state()
 
     @app.post("/pub/{topic}")
     async def pub(topic: str, request: Request) -> dict:

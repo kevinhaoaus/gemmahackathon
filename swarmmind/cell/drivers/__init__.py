@@ -6,6 +6,7 @@ driver module imports fine on a machine without the SDK; only connecting needs i
     xarm    swarmmind.cell.drivers.xarm.XArm         UFactory xArm 5/6/7, Lite 6 (pip install xarm-python-sdk)
     ur      swarmmind.cell.drivers.ur.URArm          Universal Robots e-Series/CB3 (pip install ur_rtde)
     so101   swarmmind.cell.drivers.so101.SO101Arm    adapter onto capabilities/so101.py (named poses only)
+    rebot   swarmmind.cell.drivers.rebot.RebotArm    Seeed reBot Arm B601-DM / B601-RS (pip install motorbridge)
 """
 from __future__ import annotations
 
@@ -18,6 +19,7 @@ DRIVERS: dict[str, str | Callable] = {
     "xarm": "swarmmind.cell.drivers.xarm:XArm",
     "ur": "swarmmind.cell.drivers.ur:URArm",
     "so101": "swarmmind.cell.drivers.so101:SO101Arm",
+    "rebot": "swarmmind.cell.drivers.rebot:RebotArm",
 }
 
 

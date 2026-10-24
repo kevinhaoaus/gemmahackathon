@@ -45,7 +45,49 @@ startup_grace_s: 1.0       # listen this long before claiming leadership
 
 # --- task bus ---------------------------------------------------------------
 capabilities: []           # add "arm.so101" here if the SO-101's USB cable is plugged into the Thor
-capability_config: {}      # per-capability settings, e.g. {"arm.so101": {"port": "/dev/ttyACM0", "mock": false}}
+capability_config:   # per-capability settings, e.g. {"arm.so101": {"port": "/dev/ttyACM0", "mock": false}}; plus the shared cell block
+  # robot cell / LabMate layout (docs/ROBOT_CELL.md, docs/LABMATE.md): IDENTICAL on every node, so any
+  # leader can run LabMate. Measure tag_size_m and table_tags on the real bench (metres, table frame).
+  cell:
+    tag_size_m: 0.04                   # printed black-square edge length
+    table_tags: {0: [0.0, 0.0], 1: [0.60, 0.0], 2: [0.60, 0.40], 3: [0.0, 0.40]}   # bench corners, id: [x, y]
+    objects:
+      # The printed sheet has only tags 0-3 (bench corners), 10 and 11 (plus loose copies of 0 and 3),
+      # not the 30/31 of docs/LABMATE.md, so the real bench maps safe_tray -> tag 10, handover -> tag 11.
+      # The point is 7 cm from its tag so an item set down there never covers the tag.
+      safe_tray: {tag: 10, kind: fixture, offset: [0.07, 0.0, 0.0]}     # hazards go here
+      handover:  {tag: 11, kind: fixture, offset: [0.07, 0.0, 0.0]}     # fetched items go here
+    catalog:                           # LabMate (docs/LABMATE.md): everything Gemma may name. IDENTICAL on every node
+      items:                           # height = grip height above the table (m); grasp: across = across the long axis, none = never picked
+        screwdriver:    {kind: tool,       height: 0.012, grasp: across}
+        file:           {kind: tool,       height: 0.008, grasp: across}
+        spring:         {kind: part,       height: 0.010, grasp: center}
+        superglue:      {kind: consumable, height: 0.060, grasp: center}
+        stepper_motor:  {kind: part,       height: 0.030, grasp: center}
+        motor_driver:   {kind: part,       height: 0.015, grasp: center}
+        power_supply:   {kind: equipment,  height: 0.050, grasp: none}
+        multimeter:     {kind: tool,       height: 0.030, grasp: center}
+        ruler:          {kind: tool,       height: 0.003, grasp: across}
+        stand:          {kind: equipment,  height: 0.200, grasp: none}
+      hazards:                         # the 7 fixed types; movable = the arm may relocate it, else report only
+        open_container:    {movable: true,  severity: 3, fix: "cap it and move it away from electronics"}
+        item_near_edge:    {movable: true,  severity: 2, fix: "move it back from the bench edge"}
+        sharp_tool_loose:  {movable: true,  severity: 2, fix: "store the tool, tip away from people"}
+        clutter_in_path:   {movable: true,  severity: 1, fix: "clear the arm's working area"}
+        cable_near_motion: {movable: false, severity: 3, fix: "route the cable away from moving parts"}
+        hot_tool:          {movable: false, severity: 4, fix: "let it cool on its stand; do not touch"}
+        spill:             {movable: false, severity: 4, fix: "stop and clean the spill before power-on"}
+      use_cases:                       # experiments LabMate knows; anything else gets general notes only
+        spring_pendulum: {title: "Spring pendulum",    needs: [spring, stand, ruler],                                     optional: [multimeter]}
+        stepper_test:    {title: "Stepper motor test", needs: [stepper_motor, motor_driver, power_supply, screwdriver], optional: [multimeter]}
+        deburring:       {title: "Filing / deburring", needs: [file],                                                     optional: [screwdriver]}
+    labmate:                           # LabMate timing / geometry (defaults shown)
+      confirm_s: 5.0                   # announce a hazard move, then wait this long for POST /cell/plans/{id}/cancel
+      pass_gap_s: 1.0                  # the two labelling passes use camera frames at least this far apart
+      label_max_age_s: 10.0            # /lab/fetch re-labels when the agreed labels are older than this
+      tray_radius_m: 0.06              # a blob this close to the safe_tray point counts as inside the tray
+      slot_m: 0.035                    # spacing of per-item drop points so items in the tray don't stack
+      min_use_case_score: 0.5          # below this the experiment is "unknown" (general notes only)
 
 # --- store-and-forward uplink (LAN base station, never cloud) ---------------
 uplink_urls: ["http://192.168.1.36:8800/reports"]   # base station sink; replace the IP

@@ -35,6 +35,25 @@ Progress = Callable[[dict], Awaitable[None]]
 Handler = Callable[[dict, Progress], Awaitable[Any]]
 REGISTRY: dict[str, Handler] = {}
 MAX_ATTEMPTS = 3
+# Live availability: a capability with a check here is advertised only while check() is True
+# (e.g. an arm only while its USB device is connected and answering). Plug-in detection.
+AVAILABILITY: dict[str, Callable[[], bool]] = {}
+
+
+def set_availability(name: str, check: Callable[[], bool]) -> None:
+    """Advertise `name` in heartbeats only while check() returns True. The leader never assigns
+    tasks to a node that stopped advertising, so an unplugged arm gets no new work."""
+    AVAILABILITY[name] = check
+
+
+def is_available(name: str) -> bool:
+    check = AVAILABILITY.get(name)
+    if check is None:
+        return True
+    try:
+        return bool(check())
+    except Exception:  # noqa: BLE001 - a crashing check means "not available"
+        return False
 
 
 def register_capability(name: str) -> Callable[[Handler], Handler]:

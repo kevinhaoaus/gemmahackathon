@@ -16,7 +16,7 @@ broadcast_addr: ""
 data_dir: data/sim
 num_predict: 320    # room for a full JSON plan (up to 12 steps)
 # generic task-bus handlers this node offers (swarmmind/capabilities/builtin.py)
-capabilities: ["echo", "arm.mock", "arm.big"]
+capabilities: ["echo", "arm.mock", "arm.big", "arm.cell"]
 capability_config:
   # the large arm of the cell, simulated; workspace = safe bounds in the arm base frame (metres)
   arm.big:
@@ -29,6 +29,16 @@ capability_config:
     retreat_speed: 0.08
     insert_speed: 0.02
     insert_step_m: 0.005
+  # LabMate's arm, simulated: move_object in TABLE coordinates (docs/LABMATE.md)
+  arm.cell:
+    driver: mock
+    arm_id: mock
+    base: [0.30, -0.25, 90.0, 0.0]     # table -> arm base (x, y, yaw_deg, z_table)
+    workspace: {x: [0.05, 0.80], y: [-0.50, 0.50], z: [-0.05, 0.50]}
+    max_speed: 0.25
+    speed: 0.15
+    slow_speed: 0.06
+    retreat_speed: 0.08
   # robot cell layout (docs/ROBOT_CELL.md): identical on every node, so any leader can plan
   cell:
     tag_size_m: 0.04                   # printed black-square edge length
@@ -37,5 +47,38 @@ capability_config:
       servo_1:      {tag: 10, kind: part,    offset: [0.0, 0.0, 0.015], grasp_yaw: 0}
       so101_slot_1: {tag: 20, kind: slot,    offset: [0.07, 0.0, 0.03], insert_depth: 0.02}   # slot point 7 cm from its tag: a seated part must not cover the tag
       tray_a:       {tag: 11, kind: fixture, offset: [0.0, 0.0, 0.0]}
+      safe_tray:    {tag: 30, kind: fixture, offset: [0.07, 0.0, 0.0]}     # LabMate: hazards go here
+      handover:     {tag: 31, kind: fixture, offset: [0.07, 0.0, 0.0]}     # LabMate: fetched items go here
     arms:                              # table frame -> arm base frame (x, y, yaw_deg, z_table)
       arm.big: {base: [0.30, -0.25, 90.0, 0.0], approach_h: 0.08, speed: 0.05}
+    catalog:                           # LabMate (docs/LABMATE.md): everything Gemma may name. IDENTICAL on every node
+      items:                           # height = grip height above the table (m); grasp: across = across the long axis, none = never picked
+        screwdriver:    {kind: tool,       height: 0.012, grasp: across}
+        file:           {kind: tool,       height: 0.008, grasp: across}
+        spring:         {kind: part,       height: 0.010, grasp: center}
+        superglue:      {kind: consumable, height: 0.060, grasp: center}
+        stepper_motor:  {kind: part,       height: 0.030, grasp: center}
+        motor_driver:   {kind: part,       height: 0.015, grasp: center}
+        power_supply:   {kind: equipment,  height: 0.050, grasp: none}
+        multimeter:     {kind: tool,       height: 0.030, grasp: center}
+        ruler:          {kind: tool,       height: 0.003, grasp: across}
+        stand:          {kind: equipment,  height: 0.200, grasp: none}
+      hazards:                         # the 7 fixed types; movable = the arm may relocate it, else report only
+        open_container:    {movable: true,  severity: 3, fix: "cap it and move it away from electronics"}
+        item_near_edge:    {movable: true,  severity: 2, fix: "move it back from the bench edge"}
+        sharp_tool_loose:  {movable: true,  severity: 2, fix: "store the tool, tip away from people"}
+        clutter_in_path:   {movable: true,  severity: 1, fix: "clear the arm's working area"}
+        cable_near_motion: {movable: false, severity: 3, fix: "route the cable away from moving parts"}
+        hot_tool:          {movable: false, severity: 4, fix: "let it cool on its stand; do not touch"}
+        spill:             {movable: false, severity: 4, fix: "stop and clean the spill before power-on"}
+      use_cases:                       # experiments LabMate knows; anything else gets general notes only
+        spring_pendulum: {title: "Spring pendulum",    needs: [spring, stand, ruler],                                     optional: [multimeter]}
+        stepper_test:    {title: "Stepper motor test", needs: [stepper_motor, motor_driver, power_supply, screwdriver], optional: [multimeter]}
+        deburring:       {title: "Filing / deburring", needs: [file],                                                     optional: [screwdriver]}
+    labmate:                           # LabMate timing / geometry (defaults shown)
+      confirm_s: 5.0                   # announce a hazard move, then wait this long for POST /cell/plans/{id}/cancel
+      pass_gap_s: 1.0                  # the two labelling passes use camera frames at least this far apart
+      label_max_age_s: 10.0            # /lab/fetch re-labels when the agreed labels are older than this
+      tray_radius_m: 0.06              # a blob this close to the safe_tray point counts as inside the tray
+      slot_m: 0.035                    # spacing of per-item drop points so items in the tray don't stack
+      min_use_case_score: 0.5          # below this the experiment is "unknown" (general notes only)

@@ -3,7 +3,9 @@
     python -m swarmmind.mock_llm --port 11501 --tps 12 --model gemma4:e4b [--host 127.0.0.1]
 
 Streams a deterministic canned answer word by word at --tps: a valid JSON cell plan for the
-planner prompt, {"ok": true, ...} for the verify prompt, else the canned field answer. Raw
+planner prompt, {"ok": true, ...} for the verify prompt, LabMate label / answer / report answers
+(labels come only from the simulator-only sim_truth line, see label_words), else the canned
+field answer. Raw
 /api/generate continuation counts the words already in the pre-filled model turn and
 resumes from that index, so an answer handed between nodes joins seamlessly.
 """
@@ -22,7 +24,8 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, PlainTextResponse, Response, StreamingResponse
 
-from .protocol import PLAN_SYSTEM_PROMPT, VERIFY_SYSTEM_PROMPT
+from .protocol import (ANSWER_SYSTEM_PROMPT, LABEL_SYSTEM_PROMPT, PLAN_SYSTEM_PROMPT,
+                       REPORT_SYSTEM_PROMPT, VERIFY_SYSTEM_PROMPT)
 
 # The opener has the same word count with or without an image, so a native-vision answer
 # and its text-only continuation stay word-aligned.
@@ -62,13 +65,98 @@ def plan_words(user: str) -> list[str]:
     return json.dumps(plan).split()       # json.dumps uses single spaces: " ".join() restores it
 
 
+# LabMate label job user turn (swarmmind/cell/labmate.py label_context)
+_MARK_LINE = re.compile(r"^- #(\d+):", re.M)
+_HAZARD_TYPES = re.compile(r"^Hazard types[^:]*:\s*(.*)$", re.M)
+_USE_CASE_LINE = re.compile(r"^- ([a-z0-9_]+): [^;\n]*; needs (.*)$", re.M)
+# SIMULATOR ONLY: labmate adds this line only when cell.blobs carries sim_truth (synthetic scene)
+_SIM_TRUTH = re.compile(r"sim_truth: (\{.*\})\s*$", re.M)
+_REPLY = re.compile(r"Operator's reply: (.*)", re.S)
+_PROPOSED = re.compile(r"^Proposed experiment: (.*?) \(([a-z0-9_]+)\)\s*$", re.M)
+
+
+def label_words(user: str) -> list[str]:
+    """Label JSON for LabMate. Answers correctly ONLY from the simulator's ground-truth line
+    (`sim_truth: {"<mark>": "<item>[:open]"}`); without it every mark is "unknown"."""
+    marks = [int(m) for m in _MARK_LINE.findall(user or "")]
+    truth: dict = {}
+    m = _SIM_TRUTH.search(user or "")
+    if m:
+        try:
+            truth = {str(k): str(v) for k, v in json.loads(m.group(1)).items()}
+        except (ValueError, AttributeError):
+            truth = {}
+    hz = _HAZARD_TYPES.search(user or "")
+    hazard_types = {h.strip() for h in hz.group(1).split(",")} if hz else set()
+    items, hazards, seen = [], [], set()
+    for mk in marks:
+        name, _, state = truth.get(str(mk), "unknown").partition(":")
+        items.append({"mark": mk, "item": name, "state": state})
+        if name != "unknown":
+            seen.add(name)
+        if state == "open" and "open_container" in hazard_types:
+            hazards.append({"type": "open_container", "marks": [mk]})
+    use_case, best = "unknown", 0.0
+    for uid, needs in _USE_CASE_LINE.findall(user or ""):
+        need = [n.strip() for n in needs.split(",") if n.strip()]
+        share = sum(n in seen for n in need) / len(need) if need else 0.0
+        if share > best and share >= 0.5:
+            use_case, best = uid, share
+    return json.dumps({"items": items, "hazards": hazards, "use_case": use_case}).split()
+
+
+def answer_fields_words(user: str) -> list[str]:
+    """Answer JSON for LabMate from the operator's reply (keyword rules, deterministic)."""
+    m = _REPLY.search(user or "")
+    reply = (m.group(1) if m else "").strip()
+    low = reply.lower()
+    p = _PROPOSED.search(user or "")
+    proposed = p.group(1) if p else "unknown"
+    confirmed = any(w in low for w in ("yes", "right", "correct", "yep", "exactly"))
+    phase = ("first_test" if any(w in low for w in ("first", "trial", "try", "rough", "test run"))
+             else "final_data" if any(w in low for w in ("final", "publish", "real data", "keep the data"))
+             else "unknown")
+    noise_ok = (True if "noise" in low and any(w in low for w in ("ok", "fine", "acceptable", "don't care"))
+                else False if "clean" in low else None)
+    exp = proposed if confirmed and proposed != "unknown" else (reply[:60] or proposed)
+    return json.dumps({"experiment": exp, "confirmed": confirmed, "phase": phase,
+                       "noise_ok": noise_ok}).split()
+
+
+def report_words(user: str) -> list[str]:
+    """Short spoken summary built from the report job's fact lines."""
+    facts = [ln.strip() for ln in (user or "").splitlines()]
+    hazards = [ln[2:] for ln in facts if ln.startswith("- ")]
+
+    def get(key: str) -> str:
+        return next((ln.split(":", 1)[1].strip() for ln in facts if ln.startswith(key)), "")
+
+    parts = ["Bench check done."]
+    parts += [f"{h}." for h in hazards if h != "none"] or ["I found no hazards."]
+    exp = get("Operator says") or get("Experiment I proposed") or get("Experiment")
+    if exp:
+        parts.append(f"Experiment: {exp.split(';')[0]}.")
+    parts.append(f"Missing tools: {get('Missing tools') or 'none'}.")
+    note = next((ln for ln in facts if ln.startswith(("Design notes", "Keep every"))), "")
+    if note:
+        parts.append(note.rstrip(".") + ".")
+    return " ".join(parts).split()
+
+
 def words_for(system: str, user: str, has_image: bool) -> list[str]:
-    """Pick the canned answer by prompt: plan JSON, verify JSON, or the field answer."""
+    """Pick the canned answer by prompt: plan JSON, verify JSON, LabMate label / answer / report,
+    or the field answer."""
     text = f"{system or ''}\n{user or ''}"
     if PLAN_SYSTEM_PROMPT in text:
         return plan_words(user)
     if VERIFY_SYSTEM_PROMPT in text:
         return VERIFY_ANSWER.split()
+    if LABEL_SYSTEM_PROMPT in text:
+        return label_words(user)
+    if ANSWER_SYSTEM_PROMPT in text:
+        return answer_fields_words(user)
+    if REPORT_SYSTEM_PROMPT in text:
+        return report_words(user)
     return answer_words(user, has_image)
 
 
