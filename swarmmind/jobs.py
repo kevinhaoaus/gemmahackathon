@@ -165,7 +165,7 @@ class JobManager:
         n = self.node
         if job_id and job_id in self.jobs:
             return self.jobs[job_id]
-        frame = image if image is not None else await n.vision.capture_frame()
+        frame = image if image is not None else await n.camera_frame()
         image_b64 = base64.b64encode(frame).decode() if frame else None
         vision_text: str | None = None
         if frame:

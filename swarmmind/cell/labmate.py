@@ -39,7 +39,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from ..logutil import get_logger
-from ..protocol import ANSWER_SYSTEM_PROMPT, LABEL_SYSTEM_PROMPT, PLAN_NEW, REPORT_SYSTEM_PROMPT
+from ..protocol import (ANSWER_SYSTEM_PROMPT, LABEL_SYSTEM_PROMPT, PLAN_NEW, REPORT_SYSTEM_PROMPT,
+                        SCENE_SYSTEM_PROMPT)
 from . import planner as P
 from .planner import Plan, PlanBusy, PlanError, extract_json
 
@@ -352,6 +353,68 @@ def parse_label(text: str, marks: set[int] | list[int], catalog: Catalog) -> dic
     return {"items": [items[m] for m in sorted(items)],
             "hazards": [{"type": t, "marks": sorted(ms)} for t, ms in sorted(hazards.items())],
             "use_case": uc, "warnings": warnings}
+
+
+# things that are never bench items, whatever Gemma lists (the prompt also says to skip them)
+_SCENE_SKIP = {"robot_arm", "robot", "arm", "person", "people", "hand", "hands", "table", "desk", "floor",
+               "wall", "chair", "bench", "tabletop", "background", "square_code", "qr_code", "qr", "apriltag",
+               "april_tag", "tag", "marker", "fiducial", "barcode", "paper", "sticker", "tape"}
+
+
+def parse_scene(text: str, catalog: Catalog) -> dict:
+    """Scene-mode answer (no marks: the table is not calibrated) -> items (given synthetic mark
+    numbers 1..n, no position), hazards [{"type", "marks"}] and the use case."""
+    try:
+        obj = extract_json(text)
+    except PlanError as e:
+        raise LabError(str(e)) from None
+    if not isinstance(obj, dict) or not isinstance(obj.get("items"), list):
+        raise LabError('expected {"items": [...], "hazards": [...], "use_case": "..."}')
+
+    def clean(v: Any) -> str:
+        name = resolve(v, catalog.items)
+        if name in catalog.items:
+            return name
+        name = re.sub(r"[^a-z0-9_]+", "", name)
+        return name if name and name != UNKNOWN and _NAME_RE.match(name) and len(name) <= MAX_NAME_LEN else ""
+
+    items: list[dict] = []
+    mark_of: dict[str, int] = {}
+    for e in obj["items"]:
+        if not isinstance(e, dict):
+            continue
+        name = clean(e.get("item", e.get("name", e.get("label"))))
+        if not name or name in _SCENE_SKIP:
+            continue
+        state = _STATE_WORDS.get(norm_name(e.get("state")), "")
+        if name in mark_of:
+            if state == "open":
+                items[mark_of[name] - 1]["state"] = "open"
+            continue
+        mark_of[name] = len(items) + 1
+        items.append({"mark": len(items) + 1, "item": name, "state": state, "table_xy": None, "yaw_deg": None})
+    hazards: dict[str, set[int]] = {}
+    for e in obj.get("hazards") if isinstance(obj.get("hazards"), list) else []:
+        if not isinstance(e, dict):
+            continue
+        typ = resolve(e.get("type", e.get("hazard")), catalog.hazards)
+        if typ not in catalog.hazards:
+            continue
+        m = mark_of.get(clean(e.get("item", e.get("name"))))
+        hazards.setdefault(typ, set()).update([m] if m else [])
+    uc = resolve(obj.get("use_case"), catalog.use_cases)
+    return {"items": items, "use_case": uc if uc in catalog.use_cases else UNKNOWN,
+            "hazards": [{"type": t, "marks": sorted(ms)} for t, ms in sorted(hazards.items())]}
+
+
+def scene_context(catalog: Catalog) -> str:
+    lines = ["Catalog items (use these names exactly when one fits): " + ", ".join(catalog.items),
+             "Anything else: name it yourself in 1 to 3 lowercase words joined by underscores "
+             "(for example scissors, tape_measure, beaker).",
+             "Hazard types (use these names exactly): " + ", ".join(catalog.hazards),
+             "Use cases (id: title; needs):"]
+    lines += [f"- {uid}: {uc['title']}; needs {', '.join(uc['needs'])}" for uid, uc in catalog.use_cases.items()]
+    return "\n".join(lines)
 
 
 def _derived_hazards(items: list[dict], catalog: Catalog) -> dict[str, set[int]]:
@@ -762,7 +825,7 @@ class LabMate:
 
     def _supersede_waiting(self, term: int, by: str) -> None:
         for p in self.lab_plans():
-            if p.state == "awaiting_answer" and p.lab.get("mode") == "inspect":
+            if p.state == "awaiting_answer" and p.lab.get("mode") in ("inspect", "scene"):
                 p.state, p.error = "cancelled", f"superseded by {by}"
                 self.pm._update(p, term, f"superseded by {by} (question left unanswered)")
 
@@ -775,6 +838,18 @@ class LabMate:
         self._supersede_waiting(self.node.election.term, "a new inspection")
         return self._new_plan("inspect the bench", "labelling",
                               {"mode": "inspect", "label": _new_round(0, "inspect")})
+
+    async def scene(self) -> Plan:
+        """Describe the bench from the raw camera frame: no table calibration needed, nothing is
+        moved. Same question / answer / report flow afterwards."""
+        self._require_leader()
+        self._cat()
+        act = self.pm.active()
+        if act:
+            raise PlanBusy(act.plan_id)
+        self._supersede_waiting(self.node.election.term, "a new scene description")
+        return self._new_plan("describe the bench", "describing",
+                              {"mode": "scene", "scene": {"attempt": 0, "job_id": None, "errors": []}})
 
     async def fetch(self, item: str) -> Plan:
         self._require_leader()
@@ -819,7 +894,9 @@ class LabMate:
     async def _drive(self, plan: Plan, term: int) -> None:
         st = plan.state
         try:
-            if st == "labelling":
+            if st == "describing":
+                await self._describing(plan, term)
+            elif st == "labelling":
                 await self._labelling(plan, term)
             elif st == "locating":
                 self._locating(plan, term)
@@ -945,6 +1022,49 @@ class LabMate:
         summary = (", ".join(f"{h['type']} #{'/#'.join(map(str, h['marks']))}" for h in hazards) or "no hazards")
         self._set_state(plan, term, _STEP_STATE[steps[0]["op"]] if steps else "concluding",
                         f"labels agreed: {items_phrase(lab['items'])}; {summary}")
+
+    # ---- scene mode: one Gemma look at the raw frame
+    async def _describing(self, plan: Plan, term: int) -> None:
+        S = plan.lab["scene"]
+        att = S["attempt"]
+        jid = f"{plan.plan_id}-S{att}"
+        n = self.node
+        if jid not in n.jobs.jobs:
+            frame = await n.camera_frame(max_age=0.0)
+            if not frame:
+                raise LabError("no camera frame: is a camera plugged in and selected?", 503)
+            q = "Describe the bench: list the objects you can see."
+            if S["errors"]:
+                q += (f"\n\nYour previous answer was rejected: {S['errors'][-1]}. "
+                      "Reply again with ONLY the JSON object and follow every rule.")
+            self.pm._guard(term)
+            await n.jobs.create(q, kind="scene", system=SCENE_SYSTEM_PROMPT, image=frame,
+                                context=scene_context(self._cat()), job_id=jid)
+        if plan.job_id != jid:
+            plan.job_id = jid
+            self.pm._update(plan, term)
+        try:
+            parsed = parse_scene(await self.pm._wait_job(jid, term), self._cat())
+        except (P._JobFailed, LabError) as e:
+            S["errors"].append(str(e))
+            if att >= LABEL_RETRIES:
+                raise LabError(f"could not read the scene after {att + 1} attempts: {e}") from None
+            S["attempt"] = att + 1
+            self.pm._update(plan, term, f"LabMate: unusable scene answer ({e}); asking again", level="warning")
+            return
+        lab, cat = plan.lab, self._cat()
+        lab["items"], lab["use_case_guess"] = parsed["items"], parsed["use_case"]
+        hz = []
+        for typ, ms in label_hazards(parsed, cat).items():
+            spec = cat.hazards[typ]
+            hz.append({"type": typ, "marks": sorted(ms), "severity": spec["severity"], "movable": False,
+                       "fix": spec["fix"], "status": "report_only", "edge_m": None})
+        hz.sort(key=lambda h: (-h["severity"], h["type"]))
+        lab["hazards"] = hz
+        plan.steps, plan.step = [], 0
+        summary = ", ".join(h["type"] for h in hz) or "no hazards"
+        self._set_state(plan, term, "concluding",
+                        f"scene: {items_phrase(lab['items'])}; {summary} (reported only: nothing is moved in scene mode)")
 
     # ---- fetch
     def _locating(self, plan: Plan, term: int) -> None:

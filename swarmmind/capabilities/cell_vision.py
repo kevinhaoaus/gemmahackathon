@@ -75,6 +75,7 @@ class CellVision:
         self.period = 1.0 / max(float(conf.get("rate_hz", 2.0)), 0.1)
         self.camera = str(conf.get("camera") or node.cfg.node_id)
         self.cell = P.normalize_cell(cell)
+        self._cell_raw, self._conf = cell, conf
         self.calib = P.Calibration(cell, stale_s=float(conf.get("stale_s", P.STALE_S)))
         self.mock_poses = {k: list(v) for k, v in (conf.get("mock_poses") or {}).items()}
         self.mock_items = mock_scene.normalize_items(conf.get("mock_items"))
@@ -92,6 +93,16 @@ class CellVision:
         self.task: asyncio.Task | None = None
         self.lock = asyncio.Lock()  # one frame through the pipeline at a time (loop vs. actions)
 
+    def reset_camera(self) -> None:
+        """A different camera: its table fit and empty-table background no longer apply."""
+        conf = self._conf
+        self.calib = P.Calibration(self._cell_raw, stale_s=float(conf.get("stale_s", P.STALE_S)))
+        if conf.get("blobs", True):
+            self.blobs = B.BlobPipeline(
+                self._cell_raw, px_per_m=float(conf.get("blob_px_per_m", B.PX_PER_M)),
+                min_area_m2=float(conf.get("blob_min_area_m2", B.MIN_AREA_M2)),
+                mask_margin_m=float(conf.get("blob_mask_margin_m", B.MASK_MARGIN_M)))
+
     async def grab(self) -> tuple[bytes | None, float, dict | None]:
         ts = time.time()
         if self.source == "mock":
@@ -107,6 +118,9 @@ class CellVision:
         tags = P.detect_tags(img)
         self.calib.update(tags, ts)
         state = P.build_state(tags, self.calib, ts, self.camera)
+        need = sorted(int(k) for k in self.cell["table_tags"])
+        seen = {int(t["id"]) for t in tags}
+        state["table_tags_need"], state["table_tags_seen"] = need, [i for i in need if i in seen]
         annotated = P.annotate(img, state, self.cell)
         payload = marked = None
         if self.blobs is not None:
@@ -293,6 +307,11 @@ async def shutdown() -> None:
         except (asyncio.CancelledError, Exception):  # noqa: BLE001
             pass
     _CV = None
+
+
+def reset_camera() -> None:
+    if _CV is not None:
+        _CV.reset_camera()
 
 
 async def _on_mock_poses(sample: dict) -> None:

@@ -314,6 +314,7 @@ class Vision:
         self.cfg = cfg
         self.camera_url = (cfg.camera_url or "").strip()
         self.latest_jpeg: bytes | None = None
+        self.latest_ts = 0.0
         self.mode: str = "none"
         self.has_detector: bool = False
         self._detector: _BaseDetector | None = None
@@ -435,6 +436,7 @@ class Vision:
             self._rl.warn("bad_image", f"vision: camera at {url} returned no JPEG data")
             return None
         self.latest_jpeg = data
+        self.latest_ts = time.time()
         return data
 
     async def _capture_http(self, url: str) -> bytes | None:
@@ -494,6 +496,47 @@ class Vision:
                 raise OSError(f"USB camera {path!r} returned no frame")
         ok, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
         return buf.tobytes() if ok else None
+
+    def usb_index(self) -> int | None:
+        u = self.camera_url
+        p = u[4:].partition("?")[0] if u.startswith("usb:") else ""
+        return int(p) if p.isdigit() else None
+
+    def probe_cameras(self, count: int = 5) -> list[dict]:
+        """Briefly open each USB camera index (the active one is read from its latest frame):
+        thumbnail, brightness and AprilTag ids, so the operator can pick the right camera."""
+        import base64
+        import sys
+
+        import cv2
+        from .cell import perception as P
+        cur, out = self.usb_index(), []
+        for i in range(count):
+            frame = None
+            if i == cur and self.latest_jpeg:
+                frame = cv2.imdecode(np.frombuffer(self.latest_jpeg, np.uint8), cv2.IMREAD_COLOR)
+            elif i != cur:
+                cap = cv2.VideoCapture(i, cv2.CAP_DSHOW if sys.platform == "win32" else cv2.CAP_ANY)
+                if not cap.isOpened():
+                    continue
+                cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                for _ in range(8):               # auto-exposure needs a few frames
+                    ok, f = cap.read()
+                    if ok:
+                        frame = f
+                cap.release()
+            if frame is None:
+                continue
+            tags = sorted({int(t["id"]) for t in P.detect_tags(frame)})
+            h, w = frame.shape[:2]
+            ok, buf = cv2.imencode(".jpg", cv2.resize(frame, (320, max(1, round(320 * h / w)))),
+                                   [cv2.IMWRITE_JPEG_QUALITY, 70])
+            if ok:
+                out.append({"index": i, "jpeg_b64": base64.b64encode(buf).decode(), "tags": tags,
+                            "mean": round(float(frame.mean())), "active": i == cur})
+        return out
 
     @staticmethod
     def _read_file(path: str) -> bytes:

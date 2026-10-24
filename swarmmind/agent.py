@@ -9,6 +9,7 @@ import argparse
 import asyncio
 import base64
 import collections
+import json
 import time
 import uuid
 from pathlib import Path
@@ -48,6 +49,12 @@ class Node:
         self.cfg = cfg
         self.boot_id = uuid.uuid4().hex[:8]
         self.backend = make_backend(cfg)
+        try:                                # camera picked in the portal beats the config file
+            saved = json.loads((cfg.node_data_dir / "camera.json").read_text(encoding="utf-8"))["camera_url"]
+            if cfg.camera_url.startswith("usb:") and str(saved).startswith("usb:"):
+                cfg.camera_url = saved
+        except (OSError, ValueError, KeyError):
+            pass
         self.vision = Vision(cfg)
         self.jobs = JobManager(self)
         self.tasks = TaskManager(self)
@@ -155,6 +162,40 @@ class Node:
                     events=list(self.events), tasks=self.tasks.snapshot(),
                     topics=list(self.topics.latest.values())[-50:], plans=self.plans.snapshot())
         return body
+
+    async def camera_frame(self, forwarded: bool = False, max_age: float = 1.0) -> bytes | None:
+        """Newest RAW camera frame: this node's own camera (re-captured if older than max_age s),
+        else a peer that advertises "camera". A leader without a camera still sees the bench."""
+        if self.cfg.camera_url:
+            if not self.vision.latest_jpeg or time.time() - self.vision.latest_ts > max_age:
+                await self.vision.capture_frame()
+            if self.vision.latest_jpeg:
+                return self.vision.latest_jpeg
+        if forwarded:                       # already a peer's fetch: never chain further
+            return None
+        for nid, ps in self.election.alive_peers().items():
+            if "camera" not in (ps.hb.capabilities or []):
+                continue
+            try:
+                r = await self.http.get(f"http://{ps.hb.ip}:{ps.hb.http_port}/frame.jpg",
+                                        headers={FWD_HEADER: self.cfg.node_id}, timeout=2.5)
+                if r.status_code == 200 and r.content:
+                    return r.content
+            except httpx.HTTPError as e:
+                log.debug("/frame.jpg from %s failed: %s", nid, e)
+        return None
+
+    def set_camera(self, url: str) -> None:
+        """Switch this node's USB camera at runtime (remembered in data/<node>/camera.json)."""
+        self.vision.camera_url = self.cfg.camera_url = url
+        self.vision.latest_jpeg = None
+        from .capabilities import cell_vision
+        cell_vision.reset_camera()
+        try:
+            (self.cfg.node_data_dir / "camera.json").write_text(json.dumps({"camera_url": url}), encoding="utf-8")
+        except OSError:
+            pass
+        self.event(f"camera input is now {url}")
 
     async def cell_frame(self, forwarded: bool = False) -> bytes | None:
         """Newest annotated cell frame: local perception, else fetched from a camera node."""
@@ -441,10 +482,8 @@ def build_app(node: Node) -> FastAPI:
         return node.snapshot()
 
     @app.get("/frame.jpg")
-    async def frame() -> Response:
-        jpeg = node.vision.latest_jpeg
-        if jpeg is None and node.cfg.camera_url:
-            jpeg = await node.vision.capture_frame()
+    async def frame(request: Request) -> Response:
+        jpeg = await node.camera_frame(forwarded=bool(request.headers.get(FWD_HEADER)))
         if jpeg is None:
             for j in reversed(node.jobs.order):    # fall back to the frame of the latest job
                 job = node.jobs.jobs.get(j)
@@ -529,6 +568,26 @@ def build_app(node: Node) -> FastAPI:
     @app.post("/lab/inspect")
     async def lab_inspect(request: Request) -> Response:
         return await lab_call("/lab/inspect", {}, request, node.lab.inspect)
+
+    @app.post("/lab/scene")
+    async def lab_scene(request: Request) -> Response:
+        return await lab_call("/lab/scene", {}, request, node.lab.scene)
+
+    @app.get("/cameras")
+    async def cameras() -> dict:
+        usb = node.vision.camera_url.startswith("usb:")
+        cams = await asyncio.to_thread(node.vision.probe_cameras) if usb else []
+        return {"node_id": node.cfg.node_id, "current": node.vision.camera_url, "cameras": cams}
+
+    @app.post("/camera/select")
+    async def camera_select(request: Request) -> Response:
+        try:
+            idx = int((await request.json()).get("index"))
+        except (TypeError, ValueError):
+            return JSONResponse({"error": "index (integer) is required"}, status_code=400)
+        query = node.vision.camera_url.partition("?")[2] or "w=1920&h=1080"
+        node.set_camera(f"usb:{idx}?{query}")
+        return JSONResponse({"current": node.vision.camera_url})
 
     @app.post("/lab/answer")
     async def lab_answer(request: Request) -> Response:
