@@ -1,0 +1,53 @@
+# SwarmMind node config: NVIDIA Jetson AGX Thor (Ubuntu/JetPack, aarch64), Ollama + the largest Gemma 4.
+# Every key must be a NodeConfig field (swarmmind/config.py); unknown keys are an error.
+# Setup: scripts/setup_pi.sh --config configs/thor.yaml --requirements requirements.txt --no-coral
+# Run:   .venv/bin/python -m swarmmind.agent --config configs/thor.yaml  (or the swarmmind systemd service)
+
+# --- identity ---------------------------------------------------------------
+node_id: thor              # unique name on the swarm
+rank: 200                  # top rank: Thor leads whenever it is alive and healthy
+host_ip: ""                # IP advertised to peers; "" = auto-detect the LAN IP
+http_port: 8700            # HTTP API + dashboard + /ws/peer + /ws/ui + /ws/topics
+bind_host: "0.0.0.0"       # listen on all interfaces
+
+# --- inference (local only) -------------------------------------------------
+backend: ollama            # Ollama runs natively on Jetson with CUDA
+ollama_url: "http://127.0.0.1:11434"   # this node's own Ollama; peers never call it
+# Largest Gemma 4 copied to this machine over the LAN (never pulled). Must exactly
+# match a name in `ollama list` on the Thor, e.g. gemma4:31b or gemma4:26b.
+model: "gemma4:31b"
+litert_model_path: ""      # unused with backend: ollama
+litert_backend: cpu        # unused with backend: ollama
+model_supports_images: true  # Gemma 4 is multimodal: frames go straight into the prompt
+num_predict: 384           # Thor is fast enough for longer step-by-step plans
+
+# --- vision -----------------------------------------------------------------
+vision_mode: native        # the LLM sees the image itself; no Coral needed
+detector_model: ""         # no EdgeTPU
+detector_model_cpu: ""     # optional plain .tflite detector for handoff labels; "" = none
+detector_labels: ""        # COCO labels for the optional detector
+# Workspace camera snapshot URL: http(s)://.../shot.jpg, file:<path>, mock:, or "" for none.
+# 192.168.1.50 = the Android IP Webcam phone; replace it, or "" if this node has no camera.
+camera_url: "http://192.168.1.50:8080/shot.jpg"
+
+# --- network (LAN only) -----------------------------------------------------
+# Plan: thor .30 (this), legion .36, pi .40, macbook .41, macbook2 .42. Replace with your IPs.
+static_peers: ["192.168.1.36:8700", "192.168.1.40:8700", "192.168.1.41:8700", "192.168.1.42:8700"]
+udp_port: 50000            # heartbeat/discovery port (ufw allow 50000/udp)
+broadcast_addr: "255.255.255.255"   # "" disables broadcast (static_peers only)
+heartbeat_interval: 0.2    # seconds between heartbeats
+peer_timeout: 0.6          # seconds without a heartbeat before a peer is dead
+health_interval: 0.5       # seconds between local LLM health checks
+health_window: 2.0         # healthy = own LLM answered a check within this window
+takeover_stable_s: 3.0     # stability required before preempting a healthy lower-ranked leader
+startup_grace_s: 1.0       # listen this long before claiming leadership
+
+# --- task bus ---------------------------------------------------------------
+capabilities: []           # add "arm.so101" here if the SO-101's USB cable is plugged into the Thor
+capability_config: {}      # per-capability settings, e.g. {"arm.so101": {"port": "/dev/ttyACM0", "mock": false}}
+
+# --- store-and-forward uplink (LAN base station, never cloud) ---------------
+uplink_urls: ["http://192.168.1.36:8800/reports"]   # base station sink; replace the IP
+uplink_interval: 5.0       # seconds between flush attempts (leader only)
+data_dir: data             # persisted under data/<node_id>/
+log_level: INFO            # DEBUG | INFO | WARNING

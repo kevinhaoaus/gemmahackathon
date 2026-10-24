@@ -1,0 +1,13 @@
+# SwarmMind core (laptop / any node). Python 3.11.
+# Offline install: on a connected machine run
+#   pip download -r requirements.txt -d wheels/
+# then on the target: pip install --no-index --find-links wheels/ -r requirements.txt
+fastapi>=0.110
+uvicorn[standard]>=0.29
+httpx>=0.27
+websockets>=12.0
+pyyaml>=6.0
+numpy>=1.26
+pillow>=10.0
+pytest>=8.0
+pytest-asyncio>=0.23

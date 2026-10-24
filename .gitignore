@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+
+# Environments
+.venv/
+venv/
+
+# Runtime state (jobs, reports, logs)
+data/
+*.log
+
+# Large local assets: copied over the LAN, never committed
+models/
+wheels/
+*.litertlm
+*.tflite
+*.gguf
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

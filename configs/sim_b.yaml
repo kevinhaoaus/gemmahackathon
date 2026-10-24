@@ -1,0 +1,19 @@
+# Simulator node sim_b (one machine): mock LLM on :11502 @ 6 tok/s. Launched by scripts/simulate.py.
+node_id: sim_b
+rank: 50
+host_ip: 127.0.0.1
+bind_host: 127.0.0.1
+http_port: 8702
+backend: ollama
+ollama_url: http://127.0.0.1:11502
+model: gemma4:e2b
+vision_mode: cpu
+camera_url: "mock:"
+# the other two sim nodes as "host:http_port:udp_port"; broadcast off so sims stay local
+static_peers: ["127.0.0.1:8701:50001", "127.0.0.1:8703:50003"]
+udp_port: 50002
+broadcast_addr: ""
+data_dir: data/sim
+num_predict: 120
+# generic task-bus handlers this node offers (swarmmind/capabilities/builtin.py)
+capabilities: ["echo", "arm.mock"]

@@ -1,0 +1,53 @@
+# SwarmMind node config: Lenovo Legion 5i laptop (Windows, RTX 4070), Ollama + gemma4:e4b.
+# Every key must be a NodeConfig field (swarmmind/config.py); unknown keys are an error.
+# Run: .venv\Scripts\python -m swarmmind.agent --config configs/laptop.yaml
+
+# --- identity ---------------------------------------------------------------
+node_id: legion            # unique name on the swarm; shown in the dashboard and logs
+rank: 100                  # election priority: Thor 200 > Legion 100 > MacBooks 60-80 > Pi 50
+host_ip: ""                # IP advertised to peers; "" = auto-detect the LAN IP
+http_port: 8700            # HTTP API + dashboard + /ws/peer + /ws/ui (open TCP 8700 in the firewall)
+bind_host: "0.0.0.0"       # listen on all interfaces so LAN peers can connect
+
+# --- inference (local only) -------------------------------------------------
+backend: ollama            # ollama | litert | none
+ollama_url: "http://127.0.0.1:11434"   # this node's own Ollama; peers never call it
+model: "gemma4:e4b"        # Ollama model name (already pulled; nothing is downloaded)
+litert_model_path: ""      # unused with backend: ollama
+litert_backend: cpu        # unused with backend: ollama
+model_supports_images: true  # gemma4:e4b is multimodal: frames go straight into the prompt
+num_predict: 256           # max tokens per answer
+
+# --- vision -----------------------------------------------------------------
+vision_mode: native        # native = the LLM sees the image itself
+detector_model: ""         # no EdgeTPU on the laptop
+detector_model_cpu: ""     # optional plain .tflite detector; "" = none needed in native mode
+detector_labels: ""        # COCO labels file for the optional detector
+# Android phone running the "IP Webcam" app. Replace 192.168.1.50 with the
+# phone's IP (shown in the app); the phone must be on the same LAN/hotspot.
+camera_url: "http://192.168.1.50:8080/shot.jpg"
+
+# --- network (LAN only) -----------------------------------------------------
+# Unicast heartbeat + peer bus targets, "ip:http_port[:udp_port]". Needed when the
+# WiFi blocks broadcast (AP/client isolation). Example IP plan (replace with yours):
+#   thor .30, legion .36 (this laptop), pi .40, macbook .41, macbook2 .42, phone .50
+static_peers: ["192.168.1.30:8700", "192.168.1.40:8700", "192.168.1.41:8700", "192.168.1.42:8700"]
+udp_port: 50000            # heartbeat/discovery port (open UDP 50000 in the firewall)
+broadcast_addr: "255.255.255.255"   # "" disables broadcast (static_peers only)
+heartbeat_interval: 0.2    # seconds between heartbeats
+peer_timeout: 0.6          # seconds without a heartbeat before a peer is dead
+health_interval: 0.5       # seconds between local LLM health checks
+health_window: 2.0         # healthy = own LLM answered a check within this window
+takeover_stable_s: 3.0     # a higher-ranked node must be stable this long before preempting
+startup_grace_s: 1.0       # listen this long before claiming leadership
+
+# --- task bus ---------------------------------------------------------------
+capabilities: []           # extra capabilities (e.g. "arm.kinova"); llm/vision/camera are auto-added
+capability_config: {}      # per-capability settings, e.g. {"arm.so101": {"port": "COM5", "mock": false}}
+
+# --- store-and-forward uplink (LAN base station, never cloud) ---------------
+# Base station runs: python scripts/uplink_sink.py --port 8800 (here: on this Legion). Replace the IP.
+uplink_urls: ["http://192.168.1.36:8800/reports"]
+uplink_interval: 5.0       # seconds between flush attempts (leader only)
+data_dir: data             # reports/jobs persisted under data/<node_id>/
+log_level: INFO            # DEBUG | INFO | WARNING

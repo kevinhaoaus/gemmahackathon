@@ -1,0 +1,17 @@
+# Simulator node sim_a (one machine): mock LLM on :11501 @ 12 tok/s. Launched by scripts/simulate.py.
+node_id: sim_a
+rank: 100
+host_ip: 127.0.0.1
+bind_host: 127.0.0.1
+http_port: 8701
+backend: ollama
+ollama_url: http://127.0.0.1:11501
+model: gemma4:e4b
+vision_mode: native
+camera_url: "mock:"
+# the other two sim nodes as "host:http_port:udp_port"; broadcast off so sims stay local
+static_peers: ["127.0.0.1:8702:50002", "127.0.0.1:8703:50003"]
+udp_port: 50001
+broadcast_addr: ""
+data_dir: data/sim
+num_predict: 120

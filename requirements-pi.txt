@@ -1,0 +1,14 @@
+# Raspberry Pi 5 (aarch64, Python 3.11) = core + on-device runtimes.
+# Offline install: on a connected machine with the same platform, run
+#   pip download -r requirements-pi.txt -d wheels/ --platform manylinux2014_aarch64 --python-version 3.11 --only-binary=:all:
+# then on the Pi: pip install --no-index --find-links wheels/ -r requirements-pi.txt
+-r requirements.txt
+
+# LiteRT interpreter: runs the CPU fallback object detector (.tflite) when the Coral
+# EdgeTPU is absent or pycoral is not importable.
+ai-edge-litert>=1.0
+# LiteRT-LM: runs Gemma 4 E4B (.litertlm) on the Pi CPU (backend: litert).
+litert-lm-api>=0.18   # PyPI distribution name; imports as `litert_lm`
+
+# pycoral is NOT listed: it has no official wheel for Python 3.11. scripts/setup_pi.sh
+# installs it separately (local wheel if staged) and vision falls back to cpu without it.

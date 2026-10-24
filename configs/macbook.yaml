@@ -1,0 +1,51 @@
+# SwarmMind node config: MacBook Air (Apple Silicon, macOS), Ollama + gemma4:e4b.
+# One file per MacBook: copy this file (macbook3.yaml, ...) and change node_id, rank and static_peers.
+# Every key must be a NodeConfig field (swarmmind/config.py); unknown keys are an error.
+# Run: .venv/bin/python -m swarmmind.agent --config configs/macbook.yaml
+
+# --- identity ---------------------------------------------------------------
+node_id: macbook         # unique per file (macbook, macbook2, macbook3, ...)
+rank: 80                 # MacBooks use 60-80: below Thor (200) and the Legion (100), above the Pi (50)
+host_ip: ""                # IP advertised to peers; "" = auto-detect the LAN IP
+http_port: 8700            # HTTP API + dashboard + /ws/peer + /ws/ui + /ws/topics
+bind_host: "0.0.0.0"       # listen on all interfaces
+
+# --- inference (local only) -------------------------------------------------
+backend: ollama            # Ollama for macOS (Metal); model copied over the LAN, never pulled
+ollama_url: "http://127.0.0.1:11434"   # this node's own Ollama; peers never call it
+model: "gemma4:e4b"        # must match `ollama list` on this Mac
+litert_model_path: ""      # unused with backend: ollama
+litert_backend: cpu        # unused with backend: ollama
+model_supports_images: true  # gemma4:e4b is multimodal
+num_predict: 256           # max tokens per answer
+
+# --- vision -----------------------------------------------------------------
+vision_mode: native        # the LLM sees the image itself
+detector_model: ""         # no EdgeTPU
+detector_model_cpu: ""     # optional plain .tflite detector; "" = none
+detector_labels: ""        # COCO labels for the optional detector
+# Snapshot URL: http(s)://.../shot.jpg, file:<path>, mock:, or "" for none.
+# 192.168.1.50 = the Android IP Webcam phone; replace it, or "" if this node has no camera.
+camera_url: "http://192.168.1.50:8080/shot.jpg"
+
+# --- network (LAN only) -----------------------------------------------------
+# Plan: thor .30, legion .36, pi .40, macbook .41, macbook2 .42 (this file: .41). Replace with your IPs.
+static_peers: ["192.168.1.30:8700", "192.168.1.36:8700", "192.168.1.40:8700", "192.168.1.42:8700"]
+udp_port: 50000            # heartbeat/discovery port
+broadcast_addr: "255.255.255.255"   # "" disables broadcast (static_peers only)
+heartbeat_interval: 0.2    # seconds between heartbeats
+peer_timeout: 0.6          # seconds without a heartbeat before a peer is dead
+health_interval: 0.5       # seconds between local LLM health checks
+health_window: 2.0         # healthy = own LLM answered a check within this window
+takeover_stable_s: 3.0     # stability required before preempting a healthy leader
+startup_grace_s: 1.0       # listen this long before claiming leadership
+
+# --- task bus ---------------------------------------------------------------
+capabilities: []           # add "arm.so101" if the SO-101's USB cable is plugged into this Mac
+capability_config: {}      # e.g. {"arm.so101": {"port": "/dev/tty.usbmodem5A460829821", "mock": false}}
+
+# --- store-and-forward uplink (LAN base station, never cloud) ---------------
+uplink_urls: ["http://192.168.1.36:8800/reports"]   # base station sink; replace the IP
+uplink_interval: 5.0       # seconds between flush attempts (leader only)
+data_dir: data             # persisted under data/<node_id>/
+log_level: INFO            # DEBUG | INFO | WARNING

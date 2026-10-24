@@ -1,0 +1,1016 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SwarmMind</title>
+<style>
+  :root {
+    --bg: #04060a;
+    --panel: #0d121b;
+    --panel2: #141b27;
+    --line: #2a3546;
+    --text: #f4f7fb;
+    --muted: #a9b6c8;
+    --accent: #3ee0ff;
+    --leader: #ffd23f;
+    --ok: #3ddc84;
+    --warn: #ffb020;
+    --bad: #ff4d4d;
+    --pill: #1f6feb;
+    --radius: 12px;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html { font-size: clamp(15px, 1.15vw, 22px); }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.35; -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: ui-monospace, "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace; }
+  button, input { font: inherit; color: inherit; }
+
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.2rem;
+    padding: .7rem 1rem; background: var(--panel); border-bottom: 2px solid var(--line);
+  }
+  header h1 { margin: 0; font-size: 1.6rem; letter-spacing: .02em; }
+  header h1 span { color: var(--accent); }
+  .conn { display: flex; align-items: center; gap: .5rem; font-size: 1.05rem; font-weight: 600; }
+  .dot { width: .85rem; height: .85rem; border-radius: 50%; background: var(--muted); flex: none; }
+  .conn.ok .dot { background: var(--ok); box-shadow: 0 0 10px var(--ok); }
+  .conn.bad .dot { background: var(--bad); animation: blink 0.8s steps(2) infinite; }
+  .conn.bad { color: var(--warn); }
+  .hdr-right { margin-left: auto; display: flex; gap: 1rem; align-items: center; font-size: 1.05rem; color: var(--muted); }
+  .hdr-right b { color: var(--text); }
+
+  #banner {
+    display: none; padding: .55rem 1rem; font-size: 1.6rem; font-weight: 800; text-align: center;
+    letter-spacing: .03em;
+  }
+  #banner.degraded { display: block; background: var(--warn); color: #000; }
+  #banner.noleader { display: block; background: var(--bad); color: #fff; animation: pulse 1.2s ease-in-out infinite; }
+  #banner small { font-size: .6em; font-weight: 700; opacity: .8; margin-left: .8em; }
+  #banner.stale { display: block; background: #3a1b1b; color: #ffd0d0; font-size: 1.2rem; }
+
+  main { padding: .8rem; display: grid; gap: .8rem; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: .8rem 1rem; min-width: 0; }
+  .panel h2 { margin: 0 0 .5rem; font-size: .95rem; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); display: flex; align-items: center; gap: .5rem; }
+  .panel h2 .count { margin-left: auto; font-weight: 600; color: var(--text); letter-spacing: 0; }
+
+  /* nodes */
+  #nodes { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: .7rem; }
+  .node {
+    background: var(--panel2); border: 2px solid var(--line); border-radius: var(--radius);
+    padding: .65rem .8rem; position: relative; min-width: 0;
+  }
+  .node .top { display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; }
+  .node .name { font-size: 1.45rem; font-weight: 800; word-break: break-all; }
+  .node .rank { color: var(--muted); font-size: 1rem; }
+  .node .badges { display: flex; gap: .35rem; flex-wrap: wrap; margin: .35rem 0; }
+  .badge { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-size: .85rem; font-weight: 800; letter-spacing: .04em; border: 1px solid transparent; }
+  .b-leader { background: var(--leader); color: #000; }
+  .b-alive { background: #0f3d26; color: var(--ok); border-color: var(--ok); }
+  .b-dead { background: #4a0f0f; color: #fff; border-color: var(--bad); }
+  .b-healthy { background: #0f2f3d; color: var(--accent); border-color: var(--accent); }
+  .b-unhealthy { background: #3d2a0f; color: var(--warn); border-color: var(--warn); }
+  .b-here { background: #fff; color: #000; }
+  .b-busy { background: #2b1f4d; color: #d6c7ff; border-color: #8f7cff; }
+  .node .kv { display: grid; grid-template-columns: auto 1fr; gap: .1rem .6rem; font-size: 1.05rem; }
+  .node .kv dt { color: var(--muted); }
+  .node .kv dd { margin: 0; font-weight: 600; word-break: break-word; }
+  .node .tps { font-size: 1.3rem; font-weight: 800; color: var(--accent); }
+  .chips { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .4rem; }
+  .chip { font-size: .78rem; padding: .05rem .4rem; border-radius: 6px; background: #1d2636; color: #cfe0f5; border: 1px solid #33425a; }
+  .node.leader { border-color: var(--leader); box-shadow: 0 0 0 2px var(--leader), 0 0 22px rgba(255,210,63,.35); }
+  .node.dead { opacity: .55; border-color: var(--bad); background: #1c0e10; }
+  .node.dead .name { color: var(--bad); text-decoration: line-through; }
+  .node.here { outline: 3px dashed #fff; outline-offset: 3px; }
+
+  /* main area */
+  .cols { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr); gap: .8rem; align-items: start; }
+  .stack { display: grid; gap: .8rem; min-width: 0; }
+
+  #askform { display: flex; gap: .6rem; }
+  #q { flex: 1; min-width: 0; font-size: 1.35rem; padding: .55rem .8rem; background: #05080d; border: 2px solid var(--line); border-radius: 10px; }
+  #q:focus { outline: none; border-color: var(--accent); }
+  #askbtn { font-size: 1.35rem; font-weight: 800; padding: .55rem 1.4rem; border-radius: 10px; border: 0; background: var(--accent); color: #000; cursor: pointer; }
+  #askbtn:disabled { opacity: .5; cursor: wait; }
+  #askmsg { margin-top: .4rem; font-size: 1rem; min-height: 1.3em; }
+  #askmsg.err { color: var(--bad); font-weight: 700; }
+  #askmsg.ok { color: var(--ok); }
+
+  #answerpanel { border-width: 2px; }
+  #answerpanel.streaming { border-color: var(--accent); }
+  #answerpanel.done { border-color: var(--ok); }
+  .ans-head { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-bottom: .4rem; }
+  #jobstate { font-size: 1rem; }
+  .st-streaming { background: var(--accent); color: #000; }
+  .st-done { background: var(--ok); color: #000; }
+  .st-idle { background: #333c4a; color: #fff; }
+  #question { font-size: clamp(1.25rem, 1.9vw, 2rem); font-weight: 700; color: #ffe9a8; margin: .2rem 0 .5rem; word-break: break-word; }
+  #jobmeta { display: flex; flex-wrap: wrap; gap: .4rem 1.2rem; font-size: 1rem; color: var(--muted); margin-bottom: .6rem; }
+  #jobmeta b { color: var(--text); }
+  #answer {
+    font-size: clamp(22px, 2.15vw, 34px); line-height: 1.45; white-space: pre-wrap; word-break: break-word;
+    min-height: 8em; max-height: 62vh; overflow-y: auto; padding: .4rem .2rem;
+  }
+  #answer .placeholder { color: var(--muted); font-style: italic; }
+  .handoff {
+    display: inline-block; white-space: nowrap; margin: 0 .25em; padding: .05em .55em; border-radius: 999px;
+    background: var(--pill); color: #fff; font-size: .62em; font-weight: 800; vertical-align: .12em;
+    border: 2px solid #8fc1ff; box-shadow: 0 0 14px rgba(31,111,235,.6);
+  }
+  .handoff small { font-weight: 600; opacity: .85; margin-left: .4em; white-space: normal; }
+  .cursor { display: inline-block; width: .55em; height: 1.05em; background: var(--accent); vertical-align: -.15em; margin-left: .05em; animation: blink 1s steps(2) infinite; }
+  .donemark { display: inline-block; margin-left: .4em; font-size: .6em; color: var(--ok); font-weight: 800; vertical-align: .15em; }
+
+  /* camera */
+  #framebox { position: relative; aspect-ratio: 4 / 3; background: #000; border-radius: 8px; overflow: hidden; display: grid; place-items: center; }
+  #frame { width: 100%; height: 100%; object-fit: contain; display: none; }
+  #noframe { color: var(--muted); font-size: 1.3rem; font-weight: 700; }
+  #framecap { font-size: .9rem; color: var(--muted); margin-top: .3rem; }
+
+  /* lists */
+  .list { list-style: none; margin: 0; padding: 0; overflow-y: auto; }
+  #events { max-height: 22rem; font-size: 1rem; }
+  #events li { padding: .22rem .1rem; border-bottom: 1px solid #1b2433; display: grid; grid-template-columns: 5.2em 6.5em 1fr; gap: .5rem; }
+  #events .t { color: var(--muted); }
+  #events .n { color: var(--accent); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #events li.lv-warn .m, #events li.lv-warning .m { color: var(--warn); }
+  #events li.lv-error .m, #events li.lv-critical .m, #events li.k-down .m { color: var(--bad); font-weight: 700; }
+  #events li.k-up .m { color: var(--ok); }
+  #events li.k-handoff .m { color: #8fc1ff; font-weight: 700; }
+  #events li.k-leader .m { color: var(--leader); font-weight: 700; }
+  #events li.k-conn .m { color: #e0c3ff; }
+  #reports { max-height: 22rem; }
+  #reports li { padding: .45rem .1rem; border-bottom: 1px solid #1b2433; }
+  #reports .rq { font-weight: 700; font-size: 1.05rem; }
+  #reports .ra { color: var(--muted); font-size: .95rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  #reports .rm { font-size: .85rem; color: var(--muted); margin-top: .15rem; }
+  .b-sent { background: var(--ok); color: #000; }
+  .b-queued { background: var(--warn); color: #000; }
+  #tasks { max-height: 14rem; font-size: .95rem; }
+  #tasks li { display: grid; grid-template-columns: 1fr auto; gap: .1rem .5rem; padding: .3rem .1rem; border-bottom: 1px solid #1b2433; }
+  #tasks .tid { color: var(--muted); font-size: .8rem; }
+  .empty { color: var(--muted); font-style: italic; padding: .3rem 0; }
+  .bottom { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: .8rem; }
+
+  @keyframes blink { 50% { opacity: 0; } }
+  @keyframes pulse { 50% { filter: brightness(1.35); } }
+
+  @media (max-width: 1000px) {
+    .cols, .bottom { grid-template-columns: minmax(0, 1fr); }
+    #answer { max-height: none; }
+  }
+  @media (max-width: 560px) {
+    html { font-size: 15px; }
+    main { padding: .5rem; gap: .5rem; }
+    #askform { flex-direction: column; }
+    .hdr-right { margin-left: 0; }
+    #events li { grid-template-columns: 4.6em 1fr; }
+    #events .n { display: none; }
+    #banner { font-size: 1.25rem; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Swarm<span>Mind</span></h1>
+  <div id="conn" class="conn bad"><span class="dot"></span><span id="conntext">starting…</span></div>
+  <div class="hdr-right">
+    <span>leader <b id="hleader">—</b></span>
+    <span>term <b id="hterm">—</b></span>
+    <span class="mono" id="clock"></span>
+  </div>
+</header>
+<div id="banner"></div>
+<main>
+  <section class="panel" aria-label="nodes">
+    <h2>Swarm nodes <span class="count" id="nodecount"></span></h2>
+    <div id="nodes"><div class="empty">waiting for node list…</div></div>
+  </section>
+
+  <div class="cols">
+    <div class="stack">
+      <section class="panel">
+        <form id="askform" autocomplete="off">
+          <input id="q" type="text" placeholder="Ask the swarm… (Enter)" aria-label="question">
+          <button id="askbtn" type="submit">Ask</button>
+        </form>
+        <div id="askmsg"></div>
+      </section>
+      <section class="panel" id="answerpanel">
+        <div class="ans-head">
+          <h2 style="margin:0">Live answer</h2>
+          <span id="jobstate" class="badge st-idle">IDLE</span>
+          <span id="jobid" class="mono" style="color:var(--muted);font-size:.9rem"></span>
+        </div>
+        <div id="question">No question yet</div>
+        <div id="jobmeta"></div>
+        <div id="answer"><span class="placeholder">Answers stream here, token by token.</span></div>
+      </section>
+    </div>
+    <div class="stack">
+      <section class="panel">
+        <h2>Camera <span class="count" id="framenode"></span></h2>
+        <div id="framebox"><img id="frame" alt="latest camera frame"><div id="noframe">no frame</div></div>
+        <div id="framecap"></div>
+      </section>
+      <section class="panel">
+        <h2>Tasks <span class="count" id="taskcount"></span></h2>
+        <ul class="list" id="tasks"><li class="empty">no tasks</li></ul>
+      </section>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <section class="panel">
+      <h2>Event log <span class="count" id="eventcount"></span></h2>
+      <ul class="list" id="events"></ul>
+    </section>
+    <section class="panel">
+      <h2>Reports <span class="count" id="reportcount"></span></h2>
+      <ul class="list" id="reports"><li class="empty">no reports yet</li></ul>
+    </section>
+  </div>
+</main>
+
+<script>
+'use strict';
+(function () {
+  // ---------------------------------------------------------------- constants
+  var LS_KEY = 'swarmmind.peers.v1';
+  var STALE_MS = 1000;          // no message for this long => reconnect elsewhere
+  var OPEN_TIMEOUT_MS = 900;    // WS must open within this
+  var PEERS_EVERY_MS = 2000;
+  var FRAME_EVERY_MS = 2000;
+  var MAX_EVENTS = 200;
+  var MAX_REPORTS = 100;
+  var HTTP = location.protocol === 'https:' ? 'https://' : 'http://';
+  var WSP = location.protocol === 'https:' ? 'wss://' : 'ws://';
+
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined && text !== null) e.textContent = String(text);
+    return e;
+  }
+  function now() { return Date.now(); }
+  function tsMs(ts) {            // server ts is seconds (time.time()); accept ms too
+    if (typeof ts !== 'number' || !isFinite(ts)) return now();
+    return ts > 1e12 ? ts : ts * 1000;
+  }
+  function hhmmss(ms) {
+    var d = new Date(ms);
+    function p(n) { return (n < 10 ? '0' : '') + n; }
+    return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+  function num(x, d) { return typeof x === 'number' && isFinite(x) ? x : d; }
+
+  // ---------------------------------------------------------------- state
+  var S = {
+    peers: {},              // addr -> {addr, node_id, rank, alive, lastAlive, lastFail}
+    origin: null,
+    host: null, ws: null, wsOpen: false, lastMsg: 0, gotSnapshot: false,
+    tried: {},              // addrs tried in the current reconnect round
+    self: null, leader_id: null, term: null, top_node_id: null,
+    nodes: {},              // node_id -> Node
+    nodeOrder: [],
+    nodesInit: false,
+    jobs: {}, currentJobId: null,
+    reports: {}, sentIds: {},
+    tasks: {},
+    events: [], eventKeys: {},
+    hadLeader: null
+  };
+
+  // ---------------------------------------------------------------- peers
+  function loadPeers() {
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      var arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return;
+      arr.forEach(function (p) {
+        if (p && typeof p.addr === 'string') {
+          S.peers[p.addr] = { addr: p.addr, node_id: p.node_id || null, rank: num(p.rank, 0),
+            alive: false, lastAlive: num(p.lastAlive, 0), lastFail: 0 };
+        }
+      });
+    } catch (e) { /* storage unavailable */ }
+  }
+  var saveTimer = null;
+  function savePeers() {
+    if (saveTimer) return;
+    saveTimer = setTimeout(function () {
+      saveTimer = null;
+      try {
+        var arr = Object.keys(S.peers).map(function (k) {
+          var p = S.peers[k];
+          return { addr: p.addr, node_id: p.node_id, rank: p.rank, lastAlive: p.lastAlive };
+        });
+        localStorage.setItem(LS_KEY, JSON.stringify(arr));
+      } catch (e) { /* ignore */ }
+    }, 500);
+  }
+  function addrOfNode(n) {
+    if (!n || !n.ip || !n.http_port) return null;
+    var ip = String(n.ip);
+    if (ip === '0.0.0.0' || ip === '') return null;
+    if (ip.indexOf(':') >= 0 && ip.charAt(0) !== '[') ip = '[' + ip + ']';   // IPv6
+    return ip + ':' + n.http_port;
+  }
+  function notePeer(addr, info, alive) {
+    if (!addr) return;
+    var p = S.peers[addr];
+    if (!p) p = S.peers[addr] = { addr: addr, node_id: null, rank: 0, alive: false, lastAlive: 0, lastFail: 0 };
+    if (info) {
+      if (info.node_id) p.node_id = info.node_id;
+      if (typeof info.rank === 'number') p.rank = info.rank;
+    }
+    if (alive === true) { p.alive = true; p.lastAlive = now(); }
+    else if (alive === false) { p.alive = false; }
+    savePeers();
+  }
+  function markFailed(addr) {
+    var p = S.peers[addr];
+    if (!p) { notePeer(addr, null, false); p = S.peers[addr]; }
+    p.alive = false; p.lastFail = now();
+    savePeers();
+  }
+  // order: recently alive first (rank desc inside), then the rest by lastAlive desc, rank desc
+  function candidates() {
+    var t = now();
+    var list = Object.keys(S.peers).map(function (k) { return S.peers[k]; });
+    function score(p) {
+      var recent = p.alive || (t - p.lastAlive < 5000);
+      var failedRecently = t - p.lastFail < 3000;
+      return (recent ? 2 : 0) + (failedRecently ? 0 : 1);
+    }
+    list.sort(function (a, b) {
+      var d = score(b) - score(a);
+      if (d) return d;
+      if (score(a) >= 2) return (b.rank - a.rank) || (b.lastAlive - a.lastAlive);
+      return (b.lastAlive - a.lastAlive) || (b.rank - a.rank);
+    });
+    return list.map(function (p) { return p.addr; });
+  }
+  function hostLabel(addr) {
+    var p = S.peers[addr];
+    return (p && p.node_id ? p.node_id + ' @ ' : '') + addr;
+  }
+
+  function fetchJSON(url, opts, timeoutMs) {
+    opts = opts || {};
+    var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    if (ctl) opts.signal = ctl.signal;
+    opts.cache = 'no-store';
+    var timer = setTimeout(function () { if (ctl) ctl.abort(); }, timeoutMs || 1500);
+    return fetch(url, opts).then(function (r) {
+      clearTimeout(timer);
+      return r.text().then(function (txt) {
+        var body = null;
+        try { body = txt ? JSON.parse(txt) : null; } catch (e) { body = txt; }
+        if (!r.ok) {
+          var detail = body && typeof body === 'object' ? (body.detail || body.error || JSON.stringify(body)) : (body || r.statusText);
+          var err = new Error('HTTP ' + r.status + (detail ? ': ' + detail : ''));
+          err.status = r.status;
+          throw err;
+        }
+        return body;
+      });
+    }, function (e) {
+      clearTimeout(timer);
+      throw new Error(e && e.name === 'AbortError' ? 'timeout' : 'unreachable');
+    });
+  }
+
+  var peersBusy = false;
+  function refreshPeers() {
+    var host = S.host;
+    if (!host || !S.wsOpen || peersBusy) return;
+    peersBusy = true;
+    fetchJSON(HTTP + host + '/peers', null, 1500).then(function (b) {
+      peersBusy = false;
+      if (!b || !Array.isArray(b.peers)) return;
+      b.peers.forEach(function (n) {
+        var a = addrOfNode(n);
+        if (a) notePeer(a, n, n.alive !== false);
+      });
+      if (b.self && host === S.host) notePeer(host, { node_id: b.self, rank: (S.nodes[b.self] || {}).rank }, true);
+    }, function () { peersBusy = false; });
+  }
+
+  // ---------------------------------------------------------------- connection
+  function setConn(kind, text) {
+    var c = $('conn');
+    c.className = 'conn ' + (kind === 'ok' ? 'ok' : 'bad');
+    $('conntext').textContent = text;
+  }
+  function updateConnText() {
+    if (S.ws && S.wsOpen) {
+      var id = S.self || (S.peers[S.host] || {}).node_id;
+      setConn('ok', 'connected to ' + (id ? id + ' @ ' : '') + S.host);
+    }
+  }
+
+  function connectNext() {
+    if (S.ws) return;
+    var order = candidates();
+    if (S.origin && !S.everConnected && !S.tried[S.origin]) order.unshift(S.origin); // page origin first
+    var host = null;
+    for (var i = 0; i < order.length; i++) { if (!S.tried[order[i]]) { host = order[i]; break; } }
+    if (!host) {
+      // full round failed: start over shortly
+      S.tried = {};
+      setConn('bad', 'reconnecting… (no peer reachable, retrying)');
+      setTimeout(connectNext, 400);
+      return;
+    }
+    S.tried[host] = true;
+    openWs(host);
+  }
+
+  function openWs(host) {
+    setConn('bad', 'reconnecting… trying ' + hostLabel(host));
+    var ws;
+    try { ws = new WebSocket(WSP + host + '/ws/ui'); }
+    catch (e) { markFailed(host); setTimeout(connectNext, 0); return; }
+    S.ws = ws; S.host = host; S.wsOpen = false; S.gotSnapshot = false;
+    var openTimer = setTimeout(function () { if (S.ws === ws && !S.wsOpen) dropWs(ws, 'open timeout'); }, OPEN_TIMEOUT_MS);
+    ws.onopen = function () {
+      if (S.ws !== ws) return;
+      clearTimeout(openTimer);
+      S.wsOpen = true; S.lastMsg = now(); S.tried = {}; S.everConnected = true;
+      notePeer(host, null, true);
+      updateConnText();
+      addLocalEvent('conn', 'info', 'dashboard connected to ' + hostLabel(host));
+      refreshPeers();
+      // the server sends ui.snapshot on connect; if it doesn't arrive, pull /state
+      setTimeout(function () { if (S.ws === ws && !S.gotSnapshot) fetchState(host); }, 700);
+      frameTick();
+    };
+    ws.onmessage = function (ev) {
+      if (S.ws !== ws) return;
+      S.lastMsg = now();
+      var msg;
+      try { msg = JSON.parse(ev.data); } catch (e) { return; }
+      try { handle(msg); } catch (e) { if (window.console) console.error('handle failed', e, msg); }
+    };
+    ws.onerror = function () { /* onclose follows */ };
+    ws.onclose = function () { clearTimeout(openTimer); dropWs(ws, 'closed'); };
+  }
+
+  function dropWs(ws, why) {
+    if (S.ws !== ws) return;
+    var host = S.host, wasOpen = S.wsOpen;
+    S.ws = null; S.wsOpen = false;
+    ws.onopen = ws.onmessage = ws.onclose = ws.onerror = null;
+    try { ws.close(); } catch (e) { /* ignore */ }
+    markFailed(host);
+    S.tried[host] = true;
+    if (wasOpen) {
+      addLocalEvent('down', 'warn', 'lost ' + hostLabel(host) + ' (' + why + '), failing over');
+      // our own node is gone: show it as dead until someone says otherwise
+      var p = S.peers[host];
+      if (p && p.node_id && S.nodes[p.node_id]) { S.nodes[p.node_id].alive = false; render.nodes = true; schedule(); }
+    }
+    setConn('bad', 'reconnecting…');
+    render.banner = true; schedule();
+    setTimeout(connectNext, 30);
+  }
+
+  function fetchState(host) {
+    fetchJSON(HTTP + host + '/state', null, 1500).then(function (b) {
+      if (S.host === host && b && !S.gotSnapshot) applySnapshot(b);
+    }, function () { /* ignore */ });
+  }
+
+  // watchdog: reconnect if the stream goes quiet (server sends ui.nodes every 500 ms)
+  setInterval(function () {
+    if (S.ws && S.wsOpen && now() - S.lastMsg > STALE_MS) dropWs(S.ws, 'no data for ' + STALE_MS + ' ms');
+  }, 200);
+  setInterval(refreshPeers, PEERS_EVERY_MS);
+
+  // ---------------------------------------------------------------- message handling
+  function handle(msg) {
+    if (!msg || typeof msg.type !== 'string') return;
+    var b = msg.body || {};
+    var t = msg.type;
+    if (t === 'ui.snapshot') applySnapshot(b);
+    else if (t === 'ui.nodes') applyNodes(b);
+    else if (t === 'job.new') onJobNew(b, true);
+    else if (t === 'job.token') onToken(b);
+    else if (t === 'job.handoff') onHandoff(b, true);
+    else if (t === 'job.done') onDone(b, true);
+    else if (t === 'report.new') onReport(b, true);
+    else if (t === 'report.sent') onReportSent(b);
+    else if (t === 'event') addEvent(b);
+    else if (t.indexOf('task.') === 0) onTask(t, b);
+  }
+
+  function applySnapshot(b) {
+    S.gotSnapshot = true;
+    applyNodes(b);
+    (Array.isArray(b.jobs) ? b.jobs : []).forEach(mergeSnapshotJob);
+    pickCurrentJob();
+    (Array.isArray(b.reports) ? b.reports : []).forEach(function (r) { onReport(r, false); });
+    (Array.isArray(b.events) ? b.events : []).forEach(addEvent);
+    (Array.isArray(b.tasks) ? b.tasks : []).forEach(function (tk) { onTask('task.snapshot', tk); });
+    render.answer = render.reports = render.tasks = render.events = true;
+    schedule();
+  }
+
+  function applyNodes(b) {
+    if (b.self) S.self = b.self;
+    if ('leader_id' in b) S.leader_id = b.leader_id || null;
+    if (typeof b.term === 'number') S.term = b.term;
+    if ('top_node_id' in b) S.top_node_id = b.top_node_id || null;
+    var list = Array.isArray(b.nodes) ? b.nodes : [];
+    var seen = {};
+    list.forEach(function (n) {
+      if (!n || !n.node_id) return;
+      var id = n.node_id;
+      seen[id] = true;
+      var prev = S.nodes[id];
+      var alive = n.alive !== false;
+      if (S.nodesInit) {
+        if (!prev) addLocalEvent(alive ? 'up' : 'down', 'info', 'node ' + id + ' joined' + (alive ? '' : ' (dead)'), id);
+        else if (prev.alive !== false && !alive) addLocalEvent('down', 'error', 'node ' + id + ' DOWN', id);
+        else if (prev.alive === false && alive) addLocalEvent('up', 'info', 'node ' + id + ' back UP', id);
+        else if (prev.healthy !== false && n.healthy === false && alive) addLocalEvent('down', 'warn', 'node ' + id + ' unhealthy', id);
+        else if (prev.healthy === false && n.healthy !== false && alive) addLocalEvent('up', 'info', 'node ' + id + ' healthy again', id);
+      }
+      S.nodes[id] = n;
+      var a = addrOfNode(n);
+      if (a) notePeer(a, n, id === S.self ? true : alive);
+    });
+    // nodes the server stopped listing: keep them, but dead
+    Object.keys(S.nodes).forEach(function (id) {
+      if (!seen[id] && list.length && S.nodes[id].alive !== false) {
+        S.nodes[id] = Object.assign({}, S.nodes[id], { alive: false, is_leader: false });
+        if (S.nodesInit) addLocalEvent('down', 'error', 'node ' + id + ' gone', id);
+      }
+    });
+    if (list.length) S.nodesInit = true;
+    // leader change
+    var key = (S.leader_id || '') + '#' + (S.term === null ? '' : S.term);
+    if (S.hadLeader !== null && S.hadLeader !== key) {
+      if (S.leader_id) addLocalEvent('leader', 'info', 'leader is now ' + S.leader_id + ' (term ' + S.term + ')', S.leader_id);
+      else addLocalEvent('down', 'error', 'no leader — election in progress');
+    }
+    S.hadLeader = key;
+    if (S.host) notePeer(S.host, { node_id: S.self }, true);
+    updateConnText();
+    render.nodes = render.banner = render.header = true;
+    schedule();
+  }
+
+  // ---------------------------------------------------------------- jobs
+  function ensureJob(id) {
+    var j = S.jobs[id];
+    if (!j) {
+      j = S.jobs[id] = { job_id: id, question: '', model: '', vision_mode: '', vision_text: null, has_image: false,
+        state: 'streaming', node_id: null, term: null, tokens: {}, handoffs: [], hkeys: {},
+        started_ts: null, done_ts: null, answer: null, final_seq: null, firstSeen: now() };
+    }
+    return j;
+  }
+  var META = ['question', 'model', 'vision_mode', 'vision_text', 'has_image', 'state', 'node_id', 'term', 'started_ts', 'done_ts', 'answer', 'final_seq'];
+  function mergeMeta(j, b) {
+    META.forEach(function (k) {
+      if (b[k] !== undefined && b[k] !== null && b[k] !== '') {
+        if (k === 'state' && j.state === 'done' && b[k] !== 'done') return; // never un-finish
+        j[k] = b[k];
+      }
+    });
+  }
+  function onJobNew(b, live) {
+    if (!b || !b.job_id) return;
+    var isNew = !S.jobs[b.job_id];
+    var j = ensureJob(b.job_id);
+    mergeMeta(j, b);
+    if (Array.isArray(b.handoffs)) b.handoffs.forEach(function (h) { addHandoff(j, h); });
+    if (Array.isArray(b.tokens)) b.tokens.forEach(function (tk) { addToken(j, tk, true); });
+    if (live) {
+      S.currentJobId = j.job_id;
+      if (isNew) addLocalEvent('job', 'info', 'job ' + shortId(j.job_id) + ': "' + clip(j.question, 60) + '" → ' + (j.node_id || '?') + ' (' + (j.model || '?') + ')', j.node_id);
+    }
+    render.answer = true; schedule();
+  }
+  function mergeSnapshotJob(b) {
+    if (!b || !b.job_id) return;
+    var j = ensureJob(b.job_id);
+    mergeMeta(j, b);
+    // handoffs first (handoff rule drops stale tokens), then the server's tokens are authoritative
+    if (Array.isArray(b.handoffs)) b.handoffs.forEach(function (h) { addHandoff(j, h); });
+    var toks = Array.isArray(b.tokens) ? b.tokens : [];
+    if (toks.length && b.state === 'done') j.tokens = {};
+    toks.forEach(function (tk) { addToken(j, tk, true); });
+  }
+  function lastHandoff(j) { return j.handoffs.length ? j.handoffs[j.handoffs.length - 1] : null; }
+  function addToken(j, tk, overwrite) {
+    if (!tk || typeof tk.seq !== 'number') return false;
+    if (!overwrite && j.tokens[tk.seq] !== undefined) return false;   // dedupe (job_id, seq)
+    var h = lastHandoff(j);
+    // late token from the node we already handed off from: stale, ignore
+    if (!overwrite && h && tk.seq >= h.at_seq && tk.node_id && tk.node_id === h.from_node && h.from_node !== h.to_node) return false;
+    j.tokens[tk.seq] = { seq: tk.seq, token: String(tk.token == null ? '' : tk.token), node_id: tk.node_id || null };
+    return true;
+  }
+  function onToken(b) {
+    if (!b || !b.job_id) return;
+    var known = !!S.jobs[b.job_id];
+    var j = ensureJob(b.job_id);
+    if (!known && (!S.currentJobId || (S.jobs[S.currentJobId] && S.jobs[S.currentJobId].state === 'done'))) S.currentJobId = j.job_id;
+    if (!j.node_id && b.node_id) j.node_id = b.node_id;
+    if (addToken(j, b, false)) {
+      if (b.node_id) j.node_id = b.node_id;
+      if (j.job_id === S.currentJobId) { render.answer = true; schedule(); }
+    }
+  }
+  function addHandoff(j, h) {
+    if (!h || typeof h.at_seq !== 'number') return false;
+    var key = (h.from_node || '') + '>' + (h.to_node || '') + '@' + h.at_seq;
+    if (j.hkeys[key]) return false;
+    j.hkeys[key] = true;
+    // handoff rule: drop tokens with seq >= at_seq (they came from the dead leader)
+    Object.keys(j.tokens).forEach(function (s) { if (Number(s) >= h.at_seq) delete j.tokens[s]; });
+    j.handoffs.push({ from_node: h.from_node || null, to_node: h.to_node || null, at_seq: h.at_seq,
+      gap_ms: num(h.gap_ms, null), vision_note: h.vision_note || null });
+    j.handoffs.sort(function (a, b) { return a.at_seq - b.at_seq; });
+    return true;
+  }
+  function onHandoff(b, live) {
+    if (!b || !b.job_id) return;
+    var j = ensureJob(b.job_id);
+    if (addHandoff(j, b)) {
+      if (b.to_node) j.node_id = b.to_node;
+      if (live) addLocalEvent('handoff', 'warn', 'job ' + shortId(j.job_id) + ' handed ' + (b.from_node || '?') + ' ⟶ ' + (b.to_node || '?') +
+        ' at token ' + b.at_seq + (b.gap_ms != null ? ' (gap ' + Math.round(b.gap_ms) + ' ms)' : '') + (b.vision_note ? ' — ' + b.vision_note : ''), b.to_node);
+      if (j.job_id === S.currentJobId || !S.currentJobId) { S.currentJobId = j.job_id; render.answer = true; schedule(); }
+    }
+  }
+  function onDone(b, live) {
+    if (!b || !b.job_id) return;
+    var j = ensureJob(b.job_id);
+    var was = j.state;
+    j.state = 'done';
+    if (typeof b.final_seq === 'number') j.final_seq = b.final_seq;
+    if (typeof b.answer === 'string') j.answer = b.answer;
+    j.done_ts = b.done_ts || (now() / 1000);
+    if (live && was !== 'done') addLocalEvent('job', 'info', 'job ' + shortId(j.job_id) + ' done (' + Object.keys(j.tokens).length + ' tokens, ' + j.handoffs.length + ' handoff' + (j.handoffs.length === 1 ? '' : 's') + ')', j.node_id);
+    if (j.job_id === S.currentJobId) { render.answer = true; schedule(); }
+  }
+  function pickCurrentJob() {
+    var best = null;
+    Object.keys(S.jobs).forEach(function (id) {
+      var j = S.jobs[id];
+      var t = j.started_ts ? tsMs(j.started_ts) : j.firstSeen;
+      if (!best || t > best.t) best = { id: id, t: t };
+    });
+    if (best) S.currentJobId = best.id;
+  }
+
+  // ---------------------------------------------------------------- reports / tasks / events
+  function onReport(r, live) {
+    if (!r || !r.job_id) return;
+    var prev = S.reports[r.job_id];
+    var rep = Object.assign({}, prev || {}, r);
+    rep.sent = !!(r.sent || (prev && prev.sent) || S.sentIds[r.job_id]);
+    S.reports[r.job_id] = rep;
+    if (live && !prev) addLocalEvent('report', 'info', 'report queued for job ' + shortId(r.job_id) + (rep.sent ? ' (already sent)' : ''));
+    render.reports = true; schedule();
+  }
+  function onReportSent(b) {
+    var ids = Array.isArray(b.job_ids) ? b.job_ids : [];
+    var n = 0;
+    ids.forEach(function (id) {
+      S.sentIds[id] = true;
+      if (S.reports[id] && !S.reports[id].sent) { S.reports[id].sent = true; n++; }
+    });
+    if (ids.length) addLocalEvent('report', 'info', 'uplink sent ' + ids.length + ' report' + (ids.length === 1 ? '' : 's') + ': ' + ids.map(shortId).join(', '));
+    render.reports = true; schedule();
+  }
+  var TASK_STATE = { 'task.submit': 'submitted', 'task.assign': 'assigned', 'task.progress': 'running', 'task.result': 'done' };
+  function onTask(type, b) {
+    if (!b || !b.task_id) return;
+    var prev = S.tasks[b.task_id];
+    var tk = Object.assign({}, prev || {}, b);
+    if (!b.state && TASK_STATE[type]) tk.state = TASK_STATE[type];
+    tk._ts = now();
+    S.tasks[b.task_id] = tk;
+    if (type !== 'task.snapshot' && (!prev || prev.state !== tk.state))
+      addLocalEvent('task', 'info', 'task ' + shortId(b.task_id) + ' [' + (tk.capability || '?') + '] ' + (tk.state || type) + (tk.assignee ? ' → ' + tk.assignee : ''), tk.assignee);
+    render.tasks = true; schedule();
+  }
+  function addEvent(e) {
+    if (!e) return;
+    var ms = tsMs(e.ts);
+    var key = ms + '|' + (e.node_id || '') + '|' + (e.msg || '');
+    if (S.eventKeys[key]) return;
+    S.eventKeys[key] = true;
+    S.events.push({ ms: ms, level: String(e.level || 'info').toLowerCase(), node_id: e.node_id || '', term: e.term, msg: String(e.msg == null ? '' : e.msg), kind: e.kind || 'event', key: key });
+    S.events.sort(function (a, b) { return b.ms - a.ms; });
+    while (S.events.length > MAX_EVENTS) { var old = S.events.pop(); delete S.eventKeys[old.key]; }
+    render.events = true; schedule();
+  }
+  var localSeq = 0;
+  function addLocalEvent(kind, level, msg, node) {
+    addEvent({ ts: now() + (localSeq++ % 1000) / 1000, level: level, node_id: node || 'ui', msg: msg, kind: kind });
+  }
+  function shortId(id) { id = String(id || ''); return id.length > 10 ? id.slice(0, 8) + '…' : id; }
+  function clip(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+
+  // ---------------------------------------------------------------- rendering
+  var render = { nodes: true, banner: true, header: true, answer: true, events: true, reports: true, tasks: true };
+  var scheduled = false;
+  function schedule() {
+    if (scheduled) return;
+    scheduled = true;
+    var run = function () { scheduled = false; doRender(); };
+    if (document.hidden || typeof requestAnimationFrame !== 'function') setTimeout(run, 50);
+    else requestAnimationFrame(run);
+  }
+  function doRender() {
+    if (render.nodes) { render.nodes = false; renderNodes(); }
+    if (render.banner) { render.banner = false; renderBanner(); }
+    if (render.header) { render.header = false; renderHeader(); }
+    if (render.answer) { render.answer = false; renderAnswer(); }
+    if (render.events) { render.events = false; renderEvents(); }
+    if (render.reports) { render.reports = false; renderReports(); }
+    if (render.tasks) { render.tasks = false; renderTasks(); }
+  }
+
+  function nodeList() {
+    return Object.keys(S.nodes).map(function (k) { return S.nodes[k]; })
+      .sort(function (a, b) { return num(b.rank, 0) - num(a.rank, 0) || String(a.node_id).localeCompare(String(b.node_id)); });
+  }
+  function isLeader(n) { return S.leader_id ? n.node_id === S.leader_id : !!n.is_leader; }
+
+  function renderNodes() {
+    var box = $('nodes');
+    var list = nodeList();
+    box.textContent = '';
+    if (!list.length) { box.appendChild(el('div', 'empty', 'waiting for node list…')); $('nodecount').textContent = ''; return; }
+    var alive = 0;
+    list.forEach(function (n) {
+      var dead = n.alive === false;
+      if (!dead) alive++;
+      var lead = isLeader(n) && !dead;
+      var here = n.node_id === S.self && S.wsOpen;
+      var c = el('div', 'node' + (lead ? ' leader' : '') + (dead ? ' dead' : '') + (here ? ' here' : ''));
+      var top = el('div', 'top');
+      top.appendChild(el('span', 'name', n.node_id));
+      top.appendChild(el('span', 'rank', 'rank ' + num(n.rank, '?')));
+      c.appendChild(top);
+      var badges = el('div', 'badges');
+      if (lead) badges.appendChild(el('span', 'badge b-leader', 'LEADER · term ' + (S.term === null ? '?' : S.term)));
+      badges.appendChild(el('span', 'badge ' + (dead ? 'b-dead' : 'b-alive'), dead ? 'DEAD' : 'ALIVE'));
+      if (!dead) badges.appendChild(el('span', 'badge ' + (n.healthy === false ? 'b-unhealthy' : 'b-healthy'), n.healthy === false ? 'UNHEALTHY' : 'HEALTHY'));
+      if (here) badges.appendChild(el('span', 'badge b-here', 'THIS DASHBOARD'));
+      if (n.active_job_id && !dead) badges.appendChild(el('span', 'badge b-busy', 'BUSY'));
+      c.appendChild(badges);
+      var kv = el('dl', 'kv');
+      function row(k, v, cls) { kv.appendChild(el('dt', null, k)); kv.appendChild(el('dd', cls || null, v)); }
+      row('model', n.model || '—');
+      row('vision', n.vision_mode || '—');
+      row('tok/s', (typeof n.tps === 'number' ? n.tps.toFixed(1) : '—'), 'tps');
+      row('addr', addrOfNode(n) || '—', 'mono');
+      c.appendChild(kv);
+      var caps = Array.isArray(n.capabilities) ? n.capabilities : [];
+      if (caps.length) {
+        var chips = el('div', 'chips');
+        caps.forEach(function (cap) { chips.appendChild(el('span', 'chip mono', cap)); });
+        c.appendChild(chips);
+      }
+      box.appendChild(c);
+    });
+    $('nodecount').textContent = alive + ' / ' + list.length + ' alive';
+  }
+
+  function renderBanner() {
+    var b = $('banner');
+    if (!S.ws || !S.wsOpen) {
+      if (S.everConnected) { b.className = 'stale'; b.textContent = 'Connection lost — reconnecting to another node… (showing last known state)'; }
+      else { b.className = ''; b.textContent = ''; }
+      return;
+    }
+    if (!S.leader_id) { b.className = 'noleader'; b.textContent = 'NO LEADER — electing…'; return; }
+    if (S.top_node_id && S.leader_id !== S.top_node_id) {
+      var L = S.nodes[S.leader_id] || {};
+      b.className = 'degraded';
+      b.textContent = 'DEGRADED: ' + (L.model || '?') + ' + ' + (L.vision_mode || '?');
+      b.appendChild(el('small', null, 'leader ' + S.leader_id + ' · preferred ' + S.top_node_id));
+      return;
+    }
+    b.className = ''; b.textContent = '';
+  }
+  function renderHeader() {
+    $('hleader').textContent = S.leader_id || 'none';
+    $('hterm').textContent = S.term === null ? '—' : S.term;
+  }
+
+  function renderAnswer() {
+    var j = S.jobs[S.currentJobId];
+    var panel = $('answerpanel'), ans = $('answer');
+    if (!j) {
+      panel.className = 'panel';
+      $('jobstate').className = 'badge st-idle'; $('jobstate').textContent = 'IDLE';
+      return;
+    }
+    var done = j.state === 'done';
+    panel.className = 'panel ' + (done ? 'done' : 'streaming');
+    $('jobstate').className = 'badge ' + (done ? 'st-done' : 'st-streaming');
+    $('jobstate').textContent = done ? 'DONE' : 'STREAMING' + (j.node_id ? ' · ' + j.node_id : '');
+    $('jobid').textContent = j.job_id;
+    $('question').textContent = j.question ? '“' + j.question + '”' : '(question not received yet)';
+
+    var meta = $('jobmeta');
+    meta.textContent = '';
+    function m(k, v) { var s = el('span', null, k + ' '); s.appendChild(el('b', null, v)); meta.appendChild(s); }
+    m('model', j.model || '—');
+    m('vision', (j.vision_mode ? j.vision_mode + ': ' : '') + (j.vision_text ? j.vision_text : (j.has_image ? 'native image' : 'none')));
+    if (j.term !== null && j.term !== undefined) m('term', j.term);
+    if (j.handoffs.length) m('handoffs', j.handoffs.length);
+
+    var nearBottom = ans.scrollHeight - ans.scrollTop - ans.clientHeight < 60;
+    var frag = document.createDocumentFragment();
+    var seqs = Object.keys(j.tokens).map(Number).sort(function (a, b) { return a - b; });
+    var hs = j.handoffs, hi = 0;
+    var buf = '';
+    function flush() { if (buf) { frag.appendChild(document.createTextNode(buf)); buf = ''; } }
+    function marker(h) {
+      flush();
+      var p = el('span', 'handoff', '⟶ handed to ' + (h.to_node || '?') + (h.gap_ms != null ? ' in ' + Math.round(h.gap_ms) + ' ms' : ''));
+      p.title = (h.from_node || '?') + ' → ' + (h.to_node || '?') + ' at token ' + h.at_seq;
+      if (h.vision_note) p.appendChild(el('small', null, '· ' + h.vision_note));
+      frag.appendChild(p);
+    }
+    if (!seqs.length && j.answer) {
+      buf = j.answer;
+      while (hi < hs.length) marker(hs[hi++]);
+    } else {
+      for (var i = 0; i < seqs.length; i++) {
+        while (hi < hs.length && hs[hi].at_seq <= seqs[i]) marker(hs[hi++]);   // marker anchored at at_seq
+        buf += j.tokens[seqs[i]].token;
+      }
+      while (hi < hs.length) marker(hs[hi++]);
+    }
+    flush();
+    if (!seqs.length && !j.answer && !hs.length) frag.appendChild(el('span', 'placeholder', done ? '(empty answer)' : 'thinking…'));
+    if (!done) frag.appendChild(el('span', 'cursor'));
+    else frag.appendChild(el('span', 'donemark', '■ done'));
+    ans.textContent = '';
+    ans.appendChild(frag);
+    if (nearBottom || !done) ans.scrollTop = ans.scrollHeight;
+  }
+
+  function renderEvents() {
+    var ul = $('events');
+    ul.textContent = '';
+    S.events.forEach(function (e) {
+      var li = el('li', 'lv-' + e.level + ' k-' + e.kind);
+      li.appendChild(el('span', 't mono', hhmmss(e.ms)));
+      li.appendChild(el('span', 'n', e.node_id));
+      li.appendChild(el('span', 'm', e.msg));
+      ul.appendChild(li);
+    });
+    if (!S.events.length) ul.appendChild(el('li', 'empty', 'no events yet'));
+    $('eventcount').textContent = S.events.length || '';
+  }
+
+  function renderReports() {
+    var ul = $('reports');
+    var list = Object.keys(S.reports).map(function (k) { return S.reports[k]; })
+      .sort(function (a, b) { return tsMs(b.timestamp) - tsMs(a.timestamp); }).slice(0, MAX_REPORTS);
+    ul.textContent = '';
+    var queued = 0;
+    list.forEach(function (r) {
+      if (!r.sent) queued++;
+      var li = el('li');
+      var head = el('div', 'rq');
+      head.appendChild(el('span', 'badge ' + (r.sent ? 'b-sent' : 'b-queued'), r.sent ? 'SENT' : 'QUEUED'));
+      head.appendChild(document.createTextNode(' ' + (r.question || r.job_id)));
+      li.appendChild(head);
+      if (r.answer) li.appendChild(el('div', 'ra', r.answer));
+      var hn = Array.isArray(r.handoffs) ? r.handoffs.length : 0;
+      li.appendChild(el('div', 'rm mono', (r.timestamp ? hhmmss(tsMs(r.timestamp)) + ' · ' : '') + 'nodes: ' +
+        (Array.isArray(r.nodes_used) ? r.nodes_used.join(' → ') : '?') + (hn ? ' · ' + hn + ' handoff' + (hn === 1 ? '' : 's') : '')));
+      ul.appendChild(li);
+    });
+    if (!list.length) ul.appendChild(el('li', 'empty', 'no reports yet'));
+    $('reportcount').textContent = list.length ? (list.length - queued) + ' sent · ' + queued + ' queued' : '';
+  }
+
+  function renderTasks() {
+    var ul = $('tasks');
+    var list = Object.keys(S.tasks).map(function (k) { return S.tasks[k]; })
+      .sort(function (a, b) { return (b._ts || 0) - (a._ts || 0); }).slice(0, 50);
+    ul.textContent = '';
+    list.forEach(function (t) {
+      var li = el('li');
+      li.appendChild(el('span', null, (t.capability || '?') + (t.assignee ? ' → ' + t.assignee : '')));
+      var st = String(t.state || '?');
+      var cls = /done|ok|success|complete/i.test(st) ? 'b-sent' : (/fail|error/i.test(st) ? 'b-dead' : 'b-queued');
+      li.appendChild(el('span', 'badge ' + cls, st.toUpperCase()));
+      li.appendChild(el('span', 'tid mono', t.task_id));
+      ul.appendChild(li);
+    });
+    if (!list.length) ul.appendChild(el('li', 'empty', 'no tasks'));
+    $('taskcount').textContent = list.length || '';
+  }
+
+  // ---------------------------------------------------------------- ask
+  var asking = false;
+  $('askform').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var q = $('q').value.trim();
+    if (!q || asking) return;
+    asking = true;
+    $('askbtn').disabled = true;
+    var msg = $('askmsg');
+    msg.className = ''; msg.textContent = 'sending…';
+    var order = [];
+    if (S.host) order.push(S.host);
+    candidates().forEach(function (a) {
+      var p = S.peers[a];
+      if (order.indexOf(a) < 0 && p && (p.alive || now() - p.lastAlive < 5000)) order.push(a);
+    });
+    if (!order.length && S.origin) order.push(S.origin);
+    var errors = [];
+    var body = JSON.stringify({ question: q });
+    (function tryNext(i) {
+      if (i >= order.length) {
+        asking = false; $('askbtn').disabled = false;
+        msg.className = 'err';
+        msg.textContent = order.length ? 'Ask failed — ' + errors.join(' | ') : 'Ask failed — no known nodes';
+        return;
+      }
+      var host = order[i];
+      msg.textContent = 'sending to ' + hostLabel(host) + '…';
+      fetchJSON(HTTP + host + '/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body }, 4000)
+        .then(function (r) {
+          asking = false; $('askbtn').disabled = false;
+          msg.className = 'ok';
+          msg.textContent = 'queued job ' + ((r && r.job_id) || '?') + ' via ' + hostLabel(host) + ' → leader ' + ((r && r.leader_id) || '?');
+          $('q').value = '';
+          if (r && r.job_id) {
+            var j = ensureJob(r.job_id);
+            if (!j.question) j.question = q;
+            S.currentJobId = r.job_id;
+            render.answer = true; schedule();
+          }
+        }, function (e) {
+          errors.push(hostLabel(host) + ': ' + e.message);
+          tryNext(i + 1);
+        });
+    })(0);
+  });
+
+  // ---------------------------------------------------------------- camera frame
+  var frameBusy = false;
+  function frameTick() {
+    var host = S.host;
+    if (!host || frameBusy) return;
+    frameBusy = true;
+    var img = new Image();
+    var url = HTTP + host + '/frame.jpg?t=' + now();
+    var done = function (ok) {
+      frameBusy = false;
+      var f = $('frame'), nf = $('noframe');
+      if (ok) {
+        f.src = url; f.style.display = 'block'; nf.style.display = 'none';
+        $('framecap').textContent = 'updated ' + hhmmss(now());
+      } else {
+        f.style.display = 'none'; nf.style.display = 'block';
+        $('framecap').textContent = 'no frame from ' + hostLabel(host);
+      }
+      $('framenode').textContent = (S.peers[host] && S.peers[host].node_id) || host;
+    };
+    var to = setTimeout(function () { img.onload = img.onerror = null; done(false); }, 1800);
+    img.onload = function () { clearTimeout(to); done(true); };
+    img.onerror = function () { clearTimeout(to); done(false); };
+    img.src = url;
+  }
+  setInterval(frameTick, FRAME_EVERY_MS);
+
+  // ---------------------------------------------------------------- clock + boot
+  setInterval(function () { $('clock').textContent = hhmmss(now()); }, 1000);
+  $('clock').textContent = hhmmss(now());
+
+  loadPeers();
+  var qs = (location.search.match(/[?&]node=([^&]+)/) || [])[1];
+  if (qs) S.origin = decodeURIComponent(qs);
+  else if (/^https?:$/.test(location.protocol) && location.host) S.origin = location.host;
+  if (S.origin) notePeer(S.origin, null, null);
+  if (!Object.keys(S.peers).length) notePeer('127.0.0.1:8701', null, null);   // opened from file:// with no history
+  schedule();
+  connectNext();
+})();
+</script>
+</body>
+</html>

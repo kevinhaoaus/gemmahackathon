@@ -1,0 +1,50 @@
+# SwarmMind node config: Raspberry Pi 5 8GB, Gemma 4 E4B on LiteRT-LM + Coral USB.
+# Every key must be a NodeConfig field (swarmmind/config.py); unknown keys are an error.
+# Run: .venv/bin/python -m swarmmind.agent --config configs/pi.yaml  (or the swarmmind systemd service)
+
+# --- identity ---------------------------------------------------------------
+node_id: pi                # unique name on the swarm
+rank: 50                   # lowest LLM node: leads only when Thor, Legion and the MacBooks are gone/unhealthy
+host_ip: ""                # IP advertised to peers; "" = auto-detect the LAN IP
+http_port: 8700            # HTTP API + dashboard + /ws/peer + /ws/ui
+bind_host: "0.0.0.0"       # listen on all interfaces
+
+# --- inference (local only) -------------------------------------------------
+backend: litert            # LiteRT-LM on-device runtime (alternative: ollama with a LAN-imported model)
+ollama_url: "http://127.0.0.1:11434"   # only used if backend: ollama
+model: "gemma4:e4b-litert" # display name in heartbeats/dashboard
+litert_model_path: "models/gemma-4-E4B-it.litertlm"   # copied from the laptop by scripts/setup_pi.sh
+litert_backend: cpu        # cpu | gpu (cpu is the reliable choice on the Pi 5)
+model_supports_images: false  # treated as text-only here; vision comes from the detector below
+num_predict: 192           # shorter answers: the Pi is slower; lower further if it throttles
+
+# --- vision -----------------------------------------------------------------
+vision_mode: coral         # coral (EdgeTPU) -> falls back to cpu (ai-edge-litert) -> none
+detector_model: "models/ssd_mobilenet_v2_coco_quant_postprocess_edgetpu.tflite"   # EdgeTPU model
+detector_model_cpu: "models/ssd_mobilenet_v2_coco_quant_postprocess.tflite"       # CPU fallback model
+detector_labels: "models/coco_labels.txt"                                         # COCO labels
+# Same Android "IP Webcam" phone as the Legion. Replace 192.168.1.50 with the phone's IP.
+camera_url: "http://192.168.1.50:8080/shot.jpg"
+
+# --- network (LAN only) -----------------------------------------------------
+# Other nodes, "ip:http_port". 192.168.1.36 = the Legion's IP at setup time (setup_windows.ps1
+# prints it; DHCP can change it). Plan: thor .30, legion .36, macbook .41, macbook2 .42.
+static_peers: ["192.168.1.30:8700", "192.168.1.36:8700", "192.168.1.41:8700", "192.168.1.42:8700"]
+udp_port: 50000            # heartbeat/discovery port
+broadcast_addr: "255.255.255.255"   # "" disables broadcast (static_peers only)
+heartbeat_interval: 0.2    # seconds between heartbeats
+peer_timeout: 0.6          # seconds without a heartbeat before a peer is dead
+health_interval: 0.5       # seconds between local LLM health checks
+health_window: 2.0         # healthy = own LLM answered a check within this window
+takeover_stable_s: 3.0     # stability required before preempting a healthy leader
+startup_grace_s: 1.0       # listen this long before claiming leadership
+
+# --- task bus ---------------------------------------------------------------
+capabilities: []           # e.g. ["arm.kinova"] if an arm is attached to this Pi
+capability_config: {}      # per-capability settings, e.g. {"arm.so101": {"port": "/dev/ttyACM0", "mock": false}}
+
+# --- store-and-forward uplink (LAN base station, never cloud) ---------------
+uplink_urls: ["http://192.168.1.36:8800/reports"]   # same base station as the laptop; replace the IP
+uplink_interval: 5.0       # seconds between flush attempts (leader only)
+data_dir: data             # persisted under data/<node_id>/
+log_level: INFO
