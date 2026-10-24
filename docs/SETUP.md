@@ -12,6 +12,7 @@ The only step that needs internet is installing packages (apt, pip, the Ollama i
 
 ## Contents
 
+0. [Physical network: what plugs into what](#0-physical-network-what-plugs-into-what)
 1. [Nodes and ports](#1-nodes-and-ports)
 2. [Simulator (one machine, no hardware)](#2-simulator-one-machine-no-hardware)
 3. [Legion laptop (Windows)](#3-legion-laptop-windows)
@@ -25,16 +26,62 @@ The only step that needs internet is installing packages (apt, pip, the Ollama i
 
 ---
 
+## 0. Physical network: what plugs into what
+
+**Don't cable the computers to each other.** A direct cable only connects two machines, and the swarm needs every machine on **one shared network** (same subnet, e.g. `192.168.1.x`). Every machine plugs into, or joins, one central box. No internet is needed or used.
+
+```
+                    ┌──────────────────────────────┐
+                    │  travel router (no WAN/uplink)│  DHCP + Wi-Fi "swarm"
+                    └──┬───────┬───────┬───────────┘
+              Ethernet │       │       │ Ethernet          Wi-Fi (same router)
+                 ┌─────┴──┐ ┌──┴─────┐ ┌┴──────┐     MacBook Airs · phone (IP Webcam / teleop)
+                 │  Thor  │ │ Legion │ │  Pi   │     · any laptop opening the dashboard
+                 └──┬─────┘ └──┬─────┘ └───────┘
+                USB │          │ USB
+          SO-101 arm, webcams  webcams           (USB devices belong to ONE node; not networked)
+```
+
+### Options, best first
+
+| Option | What you need | Notes |
+|---|---|---|
+| **A. Your own router** (recommended) | Any Wi-Fi router, e.g. a GL.iNet travel router or an old home router, plus 3 Ethernet cables | Leave its WAN/internet port empty. It hands out IPs (DHCP) and Wi-Fi. Wire the Thor, Legion and Pi into its LAN ports. MacBooks and the phone join its Wi-Fi. |
+| B. Phone hotspot | A spare phone with **mobile data off** | Quickest setup, about 10 devices, Wi-Fi only (no Ethernet), more jitter. The IP Webcam phone can't also be the hotspot without extra hassle, so use a second phone. |
+| C. Venue Wi-Fi | Nothing | Often has **client isolation**, which stops devices seeing each other. Test it first (below). If it passes, use `static_peers` everywhere, since broadcast is often blocked even when ping works. |
+| D. Ethernet switch, no router | An unmanaged switch | No DHCP, so set a static IP on every machine by hand. MacBooks need USB-C Ethernet adapters, and the phone can't join, so there's no phone camera or teleop. |
+
+### Rules that matter for this system
+
+- **Wire the Thor and the Legion with Ethernet.** A peer counts as dead after 600 ms without a heartbeat, and Wi-Fi hiccups can cause false failovers.
+- **Turn the Thor's Wi-Fi off** (`nmcli radio wifi off`) if pulling its Ethernet cable is your demo move. Otherwise it stays reachable over Wi-Fi and no handoff happens.
+- **One address per node.** A machine on both Ethernet and Wi-Fi has two IPs. Set `host_ip` explicitly in its config (the Legion currently has `.11` on Ethernet and `.36` on Wi-Fi), or turn off the interface you don't use.
+- **Fixed IPs.** In the router's admin page, set a DHCP reservation per machine (MAC address → IP) so the IPs in `static_peers` never change. Or set static IPs on each machine.
+- **USB devices are not on the network.** The SO-101 and the webcams plug into one node each. That node advertises them (`capabilities: ["arm.so101"]`, `camera_url: usb:0`), and everything else reaches them through the swarm.
+- **The phone** joins the same Wi-Fi. Use its IP for the IP Webcam URL, and open `http://<any-node>:8700/teleop` (HTTPS `:8443` is needed for the IMU, see the Thor guide).
+
+### Two-minute connectivity check (do this before anything else)
+
+```bash
+ping 192.168.1.30                       # from every machine to every other (Windows: ping -n 3)
+# with a node running on the target:
+curl http://192.168.1.30:8700/peers     # Windows PowerShell: curl.exe ...
+```
+
+If `ping` fails, it's the network (isolation, wrong subnet, Windows "Public" profile). If ping works but `curl` fails, it's that machine's firewall (section 9).
+
+---
+
 ## 1. Nodes and ports
 
 | Node | Config | Rank | Backend / model | Vision |
 |---|---|---|---|---|
-| Jetson AGX Thor | `configs/thor.yaml` | 200 | Ollama, largest Gemma 4 (e.g. `gemma4:31b`) | native |
+| Jetson AGX Thor | `configs/thor.yaml` | 200 | Ollama `gemma4:e4b` (copied from the Legion; a bigger Gemma 4 only if someone brings one) | native |
 | Lenovo Legion 5i (RTX 4070, Windows) | `configs/laptop.yaml` (`node_id: legion`) | 100 | Ollama `gemma4:e4b` | native |
 | MacBook Air (Apple Silicon) | `configs/macbook.yaml`, `configs/macbook2.yaml`, ... | 80, 70, (60) | Ollama `gemma4:e4b` | native |
 | Raspberry Pi 5 8GB | `configs/pi.yaml` | 50 | LiteRT-LM `gemma-4-E4B-it.litertlm` (text-only) | Coral, falling back to cpu, then none |
 
-The highest healthy `(rank, node_id)` leads. Each config's `static_peers` uses this example IP plan, so edit it to match your network:
+The highest healthy `(rank, node_id)` leads. Each config's `static_peers` uses this example IP plan. Your router decides the subnet (GL.iNet uses `192.168.8.x`, many home routers `192.168.1.x` or `192.168.0.x`), so keep the last numbers and edit the configs to match:
 
 | Node | Example IP |
 |---|---|
