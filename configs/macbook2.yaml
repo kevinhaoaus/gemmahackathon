@@ -17,7 +17,7 @@ model: "gemma4:e4b"        # must match `ollama list` on this Mac
 litert_model_path: ""      # unused with backend: ollama
 litert_backend: cpu        # unused with backend: ollama
 model_supports_images: true  # gemma4:e4b is multimodal
-num_predict: 256           # max tokens per answer
+num_predict: 512           # max tokens per answer (a handoff continues within the same budget)
 
 # --- vision -----------------------------------------------------------------
 vision_mode: native        # the LLM sees the image itself

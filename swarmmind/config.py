@@ -40,7 +40,7 @@ class NodeConfig:
     litert_model_path: str = ""          # .litertlm file when backend == litert
     litert_backend: str = "cpu"          # cpu | gpu
     model_supports_images: bool | None = None  # None = infer from backend/model
-    num_predict: int = 256
+    num_predict: int = 512
     # vision
     vision_mode: str = "none"            # native | coral | cpu | none
     detector_model: str = ""             # EdgeTPU .tflite (coral) model path

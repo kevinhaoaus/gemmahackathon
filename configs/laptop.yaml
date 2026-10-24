@@ -16,7 +16,7 @@ model: "gemma4:e4b"        # Ollama model name (already pulled; nothing is downl
 litert_model_path: ""      # unused with backend: ollama
 litert_backend: cpu        # unused with backend: ollama
 model_supports_images: true  # gemma4:e4b is multimodal: frames go straight into the prompt
-num_predict: 256           # max tokens per answer
+num_predict: 512           # max tokens per answer (a handoff continues within the same budget)
 
 # --- vision -----------------------------------------------------------------
 vision_mode: native        # native = the LLM sees the image itself

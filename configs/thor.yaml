@@ -20,7 +20,7 @@ model: "gemma4:e4b"
 litert_model_path: ""      # unused with backend: ollama
 litert_backend: cpu        # unused with backend: ollama
 model_supports_images: true  # Gemma 4 is multimodal: frames go straight into the prompt
-num_predict: 384           # Thor is fast enough for longer step-by-step plans
+num_predict: 768           # Thor is fast enough for longer step-by-step plans
 
 # --- vision -----------------------------------------------------------------
 vision_mode: native        # the LLM sees the image itself; no Coral needed

@@ -16,7 +16,7 @@ backend: ollama
 ollama_url: "http://127.0.0.1:11434"
 model: "gemma4:e4b"
 model_supports_images: true
-num_predict: 256
+num_predict: 512
 
 # --- vision -----------------------------------------------------------------
 vision_mode: native

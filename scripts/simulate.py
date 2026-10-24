@@ -83,6 +83,70 @@ def ports_in_use(include_mocks: bool = True) -> list[str]:
     return busy
 
 
+class _ChildReaper:
+    """Make children die with the simulator even if it is killed or its window is closed
+    (atexit does not run then). Windows: a Job Object with KILL_ON_JOB_CLOSE; when our process
+    dies the OS closes the handle and kills every process in the job. Linux: PR_SET_PDEATHSIG."""
+
+    def __init__(self) -> None:
+        self.job = None
+        if os.name != "nt":
+            return
+        try:
+            import ctypes
+            from ctypes import wintypes
+            k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+            class IO_COUNTERS(ctypes.Structure):
+                _fields_ = [(n, ctypes.c_ulonglong) for n in (
+                    "ReadOperationCount", "WriteOperationCount", "OtherOperationCount",
+                    "ReadTransferCount", "WriteTransferCount", "OtherTransferCount")]
+
+            class BASIC(ctypes.Structure):
+                _fields_ = [("PerProcessUserTimeLimit", ctypes.c_longlong),
+                            ("PerJobUserTimeLimit", ctypes.c_longlong),
+                            ("LimitFlags", wintypes.DWORD), ("MinimumWorkingSetSize", ctypes.c_size_t),
+                            ("MaximumWorkingSetSize", ctypes.c_size_t), ("ActiveProcessLimit", wintypes.DWORD),
+                            ("Affinity", ctypes.c_size_t), ("PriorityClass", wintypes.DWORD),
+                            ("SchedulingClass", wintypes.DWORD)]
+
+            class EXTENDED(ctypes.Structure):
+                _fields_ = [("BasicLimitInformation", BASIC), ("IoInfo", IO_COUNTERS),
+                            ("ProcessMemoryLimit", ctypes.c_size_t), ("JobMemoryLimit", ctypes.c_size_t),
+                            ("PeakProcessMemoryUsed", ctypes.c_size_t), ("PeakJobMemoryUsed", ctypes.c_size_t)]
+
+            k32.CreateJobObjectW.restype = wintypes.HANDLE
+            k32.OpenProcess.restype = wintypes.HANDLE
+            job = k32.CreateJobObjectW(None, None)
+            info = EXTENDED()
+            info.BasicLimitInformation.LimitFlags = 0x2000          # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+            if job and k32.SetInformationJobObject(wintypes.HANDLE(job), 9,   # ExtendedLimitInformation
+                                                   ctypes.byref(info), ctypes.sizeof(info)):
+                self.job, self._k32 = job, k32
+        except (OSError, AttributeError):
+            self.job = None
+
+    def adopt(self, pid: int) -> None:
+        if not self.job:
+            return
+        h = self._k32.OpenProcess(0x0101, False, pid)             # PROCESS_SET_QUOTA | PROCESS_TERMINATE
+        if h:
+            self._k32.AssignProcessToJobObject(self.job, h)
+            self._k32.CloseHandle(h)
+
+    @staticmethod
+    def preexec() -> None:                                         # Linux only (runs in the child)
+        try:
+            import ctypes
+            import signal
+            ctypes.CDLL("libc.so.6", use_errno=True).prctl(1, signal.SIGKILL)   # PR_SET_PDEATHSIG
+        except OSError:
+            pass
+
+
+_REAPER = _ChildReaper()
+
+
 def _ollama_ok(url: str) -> bool:
     try:
         return httpx.get(url.rstrip("/") + "/api/tags", timeout=1.0).status_code == 200
@@ -120,8 +184,12 @@ class SimCluster:
             kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
         else:
             kw["start_new_session"] = True
-        return subprocess.Popen([sys.executable, *args], cwd=str(ROOT), env=env, stdout=f,
+            if sys.platform.startswith("linux"):
+                kw["preexec_fn"] = _ChildReaper.preexec
+        proc = subprocess.Popen([sys.executable, *args], cwd=str(ROOT), env=env, stdout=f,
                                 stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, **kw)
+        _REAPER.adopt(proc.pid)
+        return proc
 
     @staticmethod
     def _kill(proc: subprocess.Popen[bytes] | None) -> None:
@@ -140,7 +208,7 @@ class SimCluster:
         import yaml
         with open(ROOT / n.config, encoding="utf-8") as f:
             cfg = yaml.safe_load(f)
-        cfg.update(ollama_url=self.real_ollama, model=self.real_model, num_predict=200)
+        cfg.update(ollama_url=self.real_ollama, model=self.real_model, num_predict=512)
         out = ROOT / "data" / "sim" / "cfg" / f"{n.node_id}.yaml"
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")

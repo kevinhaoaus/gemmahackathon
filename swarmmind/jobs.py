@@ -23,6 +23,10 @@ log = get_logger("jobs")
 
 MAX_JOBS = 50
 VISION_UNAVAILABLE = "[vision unavailable]"
+# What a successor that cannot see the frame is told. Phrased so the model keeps going instead of
+# announcing it has no vision (which contradicts the first half of the answer).
+RESUME_NO_VISION = ("[The camera frame was already described earlier in this answer by another unit; "
+                    "it is not attached here. Continue the answer consistently.]")
 
 
 @dataclass
@@ -189,18 +193,21 @@ class JobManager:
                 t.cancel()
         self.streaming.clear()
 
-    async def _vision_for_resume(self, job: Job) -> tuple[str | None, str]:
-        """Vision context for the successor. Returns (text, note)."""
+    async def _vision_for_resume(self, job: Job) -> tuple[str | None, str | None, str]:
+        """Vision context for the successor. Returns (text, image_b64_to_attach, note)."""
         n = self.node
+        labels = job.vision_text if job.vision_text != VISION_UNAVAILABLE else None
         if not job.has_image:
-            return job.vision_text, "no image"
-        if job.vision_text and job.vision_text != VISION_UNAVAILABLE:
-            return job.vision_text, "reused labels"
+            return labels, None, "no image"
+        if n.backend.supports_images:
+            return labels, job.image_b64, "native: re-attached frame"
+        if labels:
+            return labels, None, "reused labels"
         if n.vision.has_detector:
-            labels = await n.vision.detect_text(base64.b64decode(job.image_b64))
-            if labels:
-                return labels, f"re-ran {n.vision.mode} detector"
-        return VISION_UNAVAILABLE, "vision unavailable"
+            detected = await n.vision.detect_text(base64.b64decode(job.image_b64))
+            if detected:
+                return detected, None, f"re-ran {n.vision.mode} detector"
+        return RESUME_NO_VISION, None, "vision unavailable"
 
     @staticmethod
     def _user_turn(question: str, vision_text: str | None) -> str:
@@ -216,11 +223,13 @@ class JobManager:
             if resume:
                 at_seq = job.contiguous()
                 prefix = job.text()
-                vision_text, note = await self._vision_for_resume(job)
+                vision_text, image, note = await self._vision_for_resume(job)
                 from_node = job.node_id or "?"
                 ref = job.last_token_mono or n.leader_since
                 log.info("resuming job %s at seq %d (%s); prefix=%r", job.job_id, at_seq, note, prefix[-60:])
-                stream = n.backend.stream_continue(SYSTEM_PROMPT, self._user_turn(job.question, vision_text), prefix)
+                budget = max(32, n.cfg.num_predict - at_seq)    # same total length as an uninterrupted answer
+                stream = n.backend.stream_continue(SYSTEM_PROMPT, self._user_turn(job.question, vision_text),
+                                                   prefix, image_b64=image, max_tokens=budget)
             else:
                 at_seq = 0
                 use_image = job.image_b64 if (n.backend.supports_images and job.vision_mode == "native") else None

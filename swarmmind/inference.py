@@ -104,7 +104,10 @@ class LLMBackend:
     def stream_chat(self, system: str, user: str, image_b64: str | None) -> AsyncIterator[str]:
         raise NotImplementedError
 
-    def stream_continue(self, system: str, user: str, prefix: str) -> AsyncIterator[str]:
+    def stream_continue(self, system: str, user: str, prefix: str, image_b64: str | None = None,
+                        max_tokens: int | None = None) -> AsyncIterator[str]:
+        """Continue `prefix` mid-sentence. image_b64: re-attach the job's frame (backends that can);
+        max_tokens: remaining budget so a handed-off answer is no longer than an uninterrupted one."""
         raise NotImplementedError
 
     async def aclose(self) -> None:
@@ -123,7 +126,8 @@ class NullBackend(LLMBackend):
         raise RuntimeError("this node has no LLM backend")
         yield ""  # pragma: no cover  (makes this an async generator)
 
-    async def stream_continue(self, system: str, user: str, prefix: str) -> AsyncIterator[str]:
+    async def stream_continue(self, system: str, user: str, prefix: str, image_b64: str | None = None,
+                        max_tokens: int | None = None) -> AsyncIterator[str]:
         raise RuntimeError("this node has no LLM backend")
         yield ""  # pragma: no cover
 
@@ -192,10 +196,16 @@ class OllamaBackend(LLMBackend):
                                         lambda o: (o.get("message") or {}).get("content", "")):
             yield piece
 
-    async def stream_continue(self, system: str, user: str, prefix: str) -> AsyncIterator[str]:
-        payload = {"model": self.model, "prompt": build_gemma_prompt(system, user, prefix, self.model),
-                   "raw": True, "stream": True, "keep_alive": -1,
-                   "options": {"num_predict": self.cfg.num_predict}}
+    async def stream_continue(self, system: str, user: str, prefix: str, image_b64: str | None = None,
+                        max_tokens: int | None = None) -> AsyncIterator[str]:
+        payload: dict[str, Any] = {"raw": True, "stream": True, "keep_alive": -1, "model": self.model,
+                                   "options": {"num_predict": max_tokens or self.cfg.num_predict}}
+        if image_b64 and self.supports_images:
+            # Raw mode takes images only via an [img-N] placeholder in the prompt (verified on
+            # gemma4:e4b: without it Ollama fails to tokenize; with it the model sees the frame).
+            user = f"[img-0]{user}"
+            payload["images"] = [image_b64]
+        payload["prompt"] = build_gemma_prompt(system, user, prefix, self.model)
         async for piece in self._stream("/api/generate", payload, lambda o: o.get("response", "")):
             yield piece
 
@@ -363,12 +373,14 @@ class LiteRTBackend(LLMBackend):
                 except OSError:
                     pass
 
-    async def stream_continue(self, system: str, user: str, prefix: str) -> AsyncIterator[str]:
+    async def stream_continue(self, system: str, user: str, prefix: str, image_b64: str | None = None,
+                        max_tokens: int | None = None) -> AsyncIterator[str]:
         prompt = build_gemma_prompt(system, user, prefix, self.model or self.cfg.litert_model_path)
 
         def start() -> tuple[Iterator[Any], Any]:
+            # raw LiteRT sessions are text-only: the caller passes detector labels instead of images
             s = self._engine.create_session(apply_prompt_template=False,
-                                            max_output_tokens=self.cfg.num_predict)
+                                            max_output_tokens=max_tokens or self.cfg.num_predict)
             try:
                 s.run_prefill([prompt])
             except Exception:
