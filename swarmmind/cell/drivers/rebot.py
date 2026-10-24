@@ -450,9 +450,6 @@ class RebotArm(Arm):
             raise ArmConfigError("gripper_mode must be posvel | force_pos")
         self.g_ratio = min(1.0, max(0.0, num(c.get("gripper_force_ratio", 0.3), "gripper_force_ratio")))
         self.g_timeout = num(c.get("gripper_timeout_s", 3.0), "gripper_timeout_s")
-        # on contact, re-aim this far past where the fingers stopped (rad) instead of keeping the
-        # original (closed) target, which would squeeze at full stiffness. Small = gentle.
-        self.g_squeeze = abs(num(c.get("gripper_squeeze_rad", 0.03), "gripper_squeeze_rad"))
         self.fault_codes = {int(v) for v in (c.get("fault_codes") or [])}
         # kinematics
         tool = str(c.get("tool_frame") or ("end_link" if self.variant == "dm" else "gripper_end"))
@@ -712,27 +709,17 @@ class RebotArm(Arm):
             pass
 
     async def gripper(self, value: float) -> None:
+        """Go to the linear target for `value` (1 = open, 0 = closed) and wait until it gets there."""
         gen = self._gen
         target = self.g_closed + (self.g_open - self.g_closed) * float(value)
         await self._call(self._grip_send_sync, target)
-        t0, last, still = time.monotonic(), None, 0.0
-        dt = 0.05
+        t0 = time.monotonic()
         while time.monotonic() - t0 < self.g_timeout:
-            await asyncio.sleep(dt)
+            await asyncio.sleep(0.05)
             if gen != self._gen:
                 return
-            motor = await self._call(self._read_sync)
-            g = float(motor[N_JOINTS])
-            if abs(g - target) < self.settle_tol:
+            if abs(float((await self._call(self._read_sync))[N_JOINTS]) - target) < self.settle_tol:
                 break
-            # fingers blocked by the part: position stops changing -> grasped
-            still = still + dt if last is not None and abs(g - last) < 0.002 else 0.0
-            if still >= 0.25:
-                # hold just past the contact point, not the original target: limits the squeeze
-                direction = 1.0 if target > g else -1.0
-                await self._call(self._grip_send_sync, g + direction * self.g_squeeze)
-                break
-            last = g
         self.grip = float(value)
 
     def _grip_value(self, motor_g: float) -> float:
