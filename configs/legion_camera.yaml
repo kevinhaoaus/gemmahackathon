@@ -4,7 +4,7 @@
 # Run: .venv\Scripts\python -m swarmmind.agent --config configs/legion_camera.yaml
 node_id: legion
 rank: 100
-host_ip: ''
+host_ip: 192.168.50.2   # direct Thor <-> Legion Ethernet cable (Thor .1, Legion .2)
 http_port: 8700
 bind_host: 0.0.0.0
 backend: ollama
@@ -20,12 +20,9 @@ detector_model_cpu: ''
 detector_labels: ''
 camera_url: usb:1?w=1920&h=1080
 static_peers:
-- 192.168.1.30:8700
-- 192.168.1.40:8700
-- 192.168.1.41:8700
-- 192.168.1.42:8700
+- 192.168.50.1:8700   # the Thor
 udp_port: 50000
-broadcast_addr: 255.255.255.255
+broadcast_addr: ''   # direct cable: unicast to static_peers only
 heartbeat_interval: 0.2
 peer_timeout: 0.6
 health_interval: 0.5
@@ -175,7 +172,7 @@ capability_config:
       slot_m: 0.035
       min_use_case_score: 0.5
 uplink_urls:
-- http://192.168.1.36:8800/reports
+- http://192.168.50.2:8800/reports
 uplink_interval: 5.0
 data_dir: data
 log_level: INFO

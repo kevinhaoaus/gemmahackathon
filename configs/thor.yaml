@@ -6,7 +6,7 @@
 # --- identity ---------------------------------------------------------------
 node_id: thor              # unique name on the swarm
 rank: 200                  # top rank: Thor leads whenever it is alive and healthy
-host_ip: ""                # IP advertised to peers; "" = auto-detect the LAN IP
+host_ip: "192.168.50.1"    # direct Thor <-> Legion Ethernet cable (no router): Thor .1, Legion .2
 http_port: 8700            # HTTP API + dashboard + /ws/peer + /ws/ui + /ws/topics
 bind_host: "0.0.0.0"       # listen on all interfaces
 
@@ -33,9 +33,9 @@ camera_url: "http://192.168.1.50:8080/shot.jpg"
 
 # --- network (LAN only) -----------------------------------------------------
 # Plan: thor .30 (this), legion .36, pi .40, macbook .41, macbook2 .42. Replace with your IPs.
-static_peers: ["192.168.1.36:8700", "192.168.1.40:8700", "192.168.1.41:8700", "192.168.1.42:8700"]
+static_peers: ["192.168.50.2:8700"]   # the Legion; add more nodes here when there is a switch
 udp_port: 50000            # heartbeat/discovery port (ufw allow 50000/udp)
-broadcast_addr: "255.255.255.255"   # "" disables broadcast (static_peers only)
+broadcast_addr: ""        # direct cable: unicast to static_peers only
 heartbeat_interval: 0.2    # seconds between heartbeats
 peer_timeout: 0.6          # seconds without a heartbeat before a peer is dead
 health_interval: 0.5       # seconds between local LLM health checks
@@ -92,7 +92,7 @@ capability_config:   # per-capability settings, e.g. {"arm.so101": {"port": "/de
       min_use_case_score: 0.5          # below this the experiment is "unknown" (general notes only)
 
 # --- store-and-forward uplink (LAN base station, never cloud) ---------------
-uplink_urls: ["http://192.168.1.36:8800/reports"]   # base station sink; replace the IP
+uplink_urls: ["http://192.168.50.2:8800/reports"]   # base station sink on the Legion; replace the IP
 uplink_interval: 5.0       # seconds between flush attempts (leader only)
 data_dir: data             # persisted under data/<node_id>/
 log_level: INFO            # DEBUG | INFO | WARNING
