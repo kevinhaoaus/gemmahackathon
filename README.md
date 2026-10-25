@@ -1,6 +1,8 @@
 # SwarmMind
 
-## [Demo Video](<./AGI House Gemma Hackathon - Robots with Redundant Inference - 720p.mp4>)
+## [Demo Video (YouTube)](https://youtu.be/xQsxAvnHYsE)
+
+### [Demo Video (GitHub)](<./AGI House Gemma Hackathon - Robots with Redundant Inference - 720p.mp4>)
 
 Offline swarm of heterogeneous machines on one LAN that runs Gemma 4 and drives robots. Any node can die mid-answer and another finishes the same sentence. No cloud, no internet.
 
