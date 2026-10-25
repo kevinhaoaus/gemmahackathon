@@ -4,6 +4,10 @@
 
 ### [Demo Video (GitHub)](<./AGI House Gemma Hackathon - Robots with Redundant Inference - 720p.mp4>)
 
+### [Project Page](https://www.agihouse.org/events/the-google-gemma-hardware-hackathon/projects/8493f1a6-3680-47cf-860a-8295e32c8163)
+
+### [Hackathon Home Page](https://www.agihouse.org/events/the-google-gemma-hardware-hackathon)
+
 Offline swarm of heterogeneous machines on one LAN that runs Gemma 4 and drives robots. Any node can die mid-answer and another finishes the same sentence. No cloud, no internet.
 
 > **Now: LabMate, a research-assistant arm.** A Seeed reBot B601 (USB2CAN on COM5) and an overhead webcam (AC310, AprilTags) both plug into the Windows Legion. Gemma 4 finds items (springs, screwdrivers, files, superglue), clears hazards into a safe tray, works out which experiment the setup is for and which tools are missing, and fetches items. The Thor is the brain; the swarm keeps going if a computer or an arm dies. See [docs/LABMATE.md](docs/LABMATE.md). Earlier pivots: [docs/ROBOT_CELL.md](docs/ROBOT_CELL.md).
