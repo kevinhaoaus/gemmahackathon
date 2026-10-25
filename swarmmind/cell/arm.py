@@ -366,7 +366,7 @@ class Safety:
 
 
 # ====================================================================== primitives
-def width_to_grip(width_m: float, open_width_m: float = 0.10, squeeze_m: float = 0.005) -> float:
+def width_to_grip(width_m: float, open_width_m: float = 0.10, squeeze_m: float = 0.009) -> float:
     """Linear gripper model: value 1.0 = fully open (open_width_m apart), 0.0 = closed (0 cm).
     Close to (object width - squeeze) instead of fully shut, so the fingers stop near the part."""
     if open_width_m <= 0:

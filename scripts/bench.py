@@ -862,12 +862,16 @@ def cmd_pick(args) -> None:
     def grip_for(blob) -> tuple[float | None, str]:
         """Linear model: gripper value from the object's width seen by the camera (short side)."""
         from swarmmind.cell.arm import width_to_grip
-        if blob is None or not blob.get("width_m"):
-            return None, "no object width (raw click): closes until contact"
-        w = float(blob["width_m"])
+        if args.width_cm:
+            w, src = args.width_cm / 100, "--width-cm"
+        elif blob is not None and blob.get("width_m"):
+            w, src = float(blob["width_m"]), "camera bounding box"
+        else:
+            return None, ("NO WIDTH: click an object the camera has boxed (press b on the EMPTY table first, "
+                          "then place the object), or pass --width-cm")
         v = width_to_grip(w, args.grip_open_cm / 100, args.squeeze_mm / 1000)
-        return v, (f"object width {w * 100:.1f} cm -> gripper to {v * args.grip_open_cm:.1f} cm "
-                   f"(value {v:.2f}, squeeze {args.squeeze_mm:.0f} mm)")
+        return v, (f"object width {w * 100:.1f} cm ({src}) -> gripper closes to {v * args.grip_open_cm:.1f} cm "
+                   f"= width - {args.squeeze_mm:.0f} mm")
 
     def select(xy, blob=None):
         nonlocal state, sel
@@ -942,6 +946,11 @@ def cmd_pick(args) -> None:
                     vis.status = ("DRY RUN: plan ok (n = new pick)" if args.dry_run
                                   else "press y to EXECUTE, n to cancel")
             if state == "confirm" and key == ord("y") and not args.dry_run:
+                if sel[3] is None:
+                    print("REFUSED: no object width, so the gripper would close fully. Press n, press b on the "
+                          "empty table, place the object, and click it; or restart with --width-cm 4")
+                    vis.status = "REFUSED: no object width (n = cancel, see terminal)"
+                    continue
                 if not runner.connected:
                     print("enabling the arm (torque ON) ...")
                     runner.connect()
@@ -996,7 +1005,8 @@ def main(argv=None) -> None:
     k.add_argument("--approach", type=float, default=0.08, help="approach height above grip, m")
     k.add_argument("--dry-run", action="store_true", help="plan and show, never connect or move")
     k.add_argument("--grip-open-cm", type=float, default=10.0, help="finger gap when fully open (linear model)")
-    k.add_argument("--squeeze-mm", type=float, default=15.0, help="close this much narrower than the object")
+    k.add_argument("--squeeze-mm", type=float, default=9.0, help="close this much narrower than the object")
+    k.add_argument("--width-cm", type=float, default=0.0, help="use this object width instead of the camera's (cm)")
     k.add_argument("--seconds", type=float, default=0, help="auto-quit after N s (testing)")
     args = ap.parse_args(argv)
     if args.cmd == "jog-gui":
