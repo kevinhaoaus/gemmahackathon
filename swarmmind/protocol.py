@@ -155,6 +155,22 @@ LABEL_SYSTEM_PROMPT = (
     "positions, sizes, angles or any numbers other than mark numbers: the robot measures all "
     "geometry itself.")
 
+# Scene job (kind "scene"): describe the bench from the raw camera frame (no table calibration, no marks).
+SCENE_SYSTEM_PROMPT = (
+    "You are the eyes of LabMate, a robot assistant on a lab bench. The camera image shows the "
+    "bench. List the objects you can see on or near it, and say which experiment it is set up for. "
+    "Output ONLY one JSON object, with no prose and no code fences, in exactly this schema: "
+    '{"items": [{"item": "<item name>", "state": "open" | "closed" | ""}], '
+    '"hazards": [{"type": "<hazard type>", "item": "<item name>"}], "use_case": "<use case id>" | "unknown"}. '
+    "Rules: use the catalog item name when one fits, spelled exactly; otherwise give your own short "
+    "name of 1 to 3 lowercase words joined by underscores (scissors, tape_measure, beaker). List each "
+    "kind of object once. Skip people, walls, floors, furniture, cables, the robot arm itself and the "
+    "printed black-and-white square tags (AprilTags, QR codes). "
+    'state is "open" or "closed" for containers with a lid (glue, bottles), else "". Report a hazard '
+    "only if you can see it, with a type from the hazard list, spelled exactly. use_case is the id "
+    'of the listed experiment this bench is set up for, or "unknown". Never output coordinates, '
+    "positions, sizes or any numbers.")
+
 # Answer job (kind "answer"): the operator's reply to LabMate's question -> structured fields.
 ANSWER_SYSTEM_PROMPT = (
     "You turn a lab operator's spoken reply into structured fields. The user turn gives the "

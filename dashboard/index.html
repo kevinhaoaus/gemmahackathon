@@ -92,31 +92,7 @@
   .cols { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr); gap: .8rem; align-items: start; }
   .stack { display: grid; gap: .8rem; min-width: 0; }
 
-  #askform { display: flex; gap: .6rem; }
-  #q { flex: 1; min-width: 0; font-size: 1.35rem; padding: .55rem .8rem; background: #05080d; border: 2px solid var(--line); border-radius: 10px; }
-  #q:focus { outline: none; border-color: var(--accent); }
-  #askbtn { font-size: 1.35rem; font-weight: 800; padding: .55rem 1.4rem; border-radius: 10px; border: 0; background: var(--accent); color: #000; cursor: pointer; }
-  #askbtn:disabled { opacity: .5; cursor: wait; }
-  #askmsg { margin-top: .4rem; font-size: 1rem; min-height: 1.3em; }
-  #askmsg.err { color: var(--bad); font-weight: 700; }
-  #askmsg.ok { color: var(--ok); }
 
-  #answerpanel { border-width: 2px; }
-  #answerpanel.streaming { border-color: var(--accent); }
-  #answerpanel.done { border-color: var(--ok); }
-  .ans-head { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-bottom: .4rem; }
-  #jobstate { font-size: 1rem; }
-  .st-streaming { background: var(--accent); color: #000; }
-  .st-done { background: var(--ok); color: #000; }
-  .st-idle { background: #333c4a; color: #fff; }
-  #question { font-size: clamp(1.25rem, 1.9vw, 2rem); font-weight: 700; color: #ffe9a8; margin: .2rem 0 .5rem; word-break: break-word; }
-  #jobmeta { display: flex; flex-wrap: wrap; gap: .4rem 1.2rem; font-size: 1rem; color: var(--muted); margin-bottom: .6rem; }
-  #jobmeta b { color: var(--text); }
-  #answer {
-    font-size: clamp(22px, 2.15vw, 34px); line-height: 1.45; white-space: pre-wrap; word-break: break-word;
-    min-height: 8em; max-height: 62vh; overflow-y: auto; padding: .4rem .2rem;
-  }
-  #answer .placeholder { color: var(--muted); font-style: italic; }
   .handoff {
     display: inline-block; white-space: nowrap; margin: 0 .25em; padding: .05em .55em; border-radius: 999px;
     background: var(--pill); color: #fff; font-size: .62em; font-weight: 800; vertical-align: .12em;
@@ -126,11 +102,6 @@
   .cursor { display: inline-block; width: .55em; height: 1.05em; background: var(--accent); vertical-align: -.15em; margin-left: .05em; animation: blink 1s steps(2) infinite; }
   .donemark { display: inline-block; margin-left: .4em; font-size: .6em; color: var(--ok); font-weight: 800; vertical-align: .15em; }
 
-  /* camera */
-  #framebox { position: relative; aspect-ratio: 4 / 3; background: #000; border-radius: 8px; overflow: hidden; display: grid; place-items: center; }
-  #frame { width: 100%; height: 100%; object-fit: contain; display: none; }
-  #noframe { color: var(--muted); font-size: 1.3rem; font-weight: 700; }
-  #framecap { font-size: .9rem; color: var(--muted); margin-top: .3rem; }
 
   /* lists */
   .list { list-style: none; margin: 0; padding: 0; overflow-y: auto; }
@@ -151,122 +122,19 @@
   #reports .rm { font-size: .85rem; color: var(--muted); margin-top: .15rem; }
   .b-sent { background: var(--ok); color: #000; }
   .b-queued { background: var(--warn); color: #000; }
-  #tasks { max-height: 14rem; font-size: .95rem; }
-  #tasks li { display: grid; grid-template-columns: 1fr auto; gap: .1rem .5rem; padding: .3rem .1rem; border-bottom: 1px solid #1b2433; }
-  #tasks .tid { color: var(--muted); font-size: .8rem; }
   .empty { color: var(--muted); font-style: italic; padding: .3rem 0; }
   .bottom { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: .8rem; }
   #events li.k-plan .m { color: #b8f7c9; font-weight: 700; }
 
-  /* ---- robot cell ---- */
-  #cellpanel { border: 2px solid #2f5d6b; box-shadow: 0 0 26px rgba(62,224,255,.08); }
-  #cellpanel > h2 { font-size: 1.15rem; color: var(--accent); }
-  #goalform { display: flex; flex-wrap: wrap; gap: .6rem; }
-  #goal { flex: 1 1 18rem; min-width: 0; font-size: 1.5rem; padding: .55rem .8rem; background: #05080d; border: 2px solid var(--line); border-radius: 10px; }
-  #goal:focus { outline: none; border-color: var(--ok); }
-  #buildbtn { font-size: 1.5rem; font-weight: 900; padding: .55rem 1.6rem; border-radius: 10px; border: 0; background: var(--ok); color: #000; cursor: pointer; letter-spacing: .03em; }
-  #buildbtn:disabled, #cancelbtn:disabled { opacity: .45; cursor: not-allowed; }
-  .presetbtn { font-size: 1.05rem; font-weight: 700; padding: .45rem .9rem; border-radius: 10px; border: 2px solid #3d6b4f; background: #0f2a1b; color: #b8f7c9; cursor: pointer; }
-  #cellmsg { margin-top: .4rem; font-size: 1rem; min-height: 1.3em; }
-  #cellmsg.err { color: var(--bad); font-weight: 700; }
-  #cellmsg.ok { color: var(--ok); }
-  .cellgrid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: .8rem; margin-top: .6rem; align-items: start; }
   .subpanel { background: var(--panel2); border: 1px solid var(--line); border-radius: var(--radius); padding: .7rem .9rem; min-width: 0; }
   .subpanel h3 { margin: 0 0 .45rem; font-size: .9rem; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
   .subpanel h3 .count { margin-left: auto; color: var(--text); letter-spacing: 0; font-weight: 600; text-transform: none; }
-
-  #planbox.p-running { border-color: var(--pill); }
-  #planbox.p-planning, #planbox.p-validating { border-color: var(--accent); }
-  #planbox.p-done { border-color: var(--ok); }
-  #planbox.p-failed { border-color: var(--bad); }
-  .plan-head { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .6rem; }
-  .plan-head .grow { flex: 1; }
-  .ps { font-size: 1.25rem; padding: .15rem .8rem; }
-  .ps-planning { background: var(--accent); color: #000; animation: pulse 1.2s ease-in-out infinite; }
-  .ps-validating { background: #8f7cff; color: #000; }
-  .ps-running { background: var(--pill); color: #fff; border-color: #8fc1ff; }
-  .ps-done { background: var(--ok); color: #000; }
-  .ps-failed { background: var(--bad); color: #fff; }
-  .ps-cancelled { background: #4a5568; color: #fff; }
-  .ps-idle { background: #333c4a; color: #fff; }
-  .plan-lead { font-size: 1.2rem; font-weight: 700; }
-  .plan-lead .badge { font-size: 1rem; }
   .b-down { background: var(--bad); color: #fff; animation: pulse 1s ease-in-out infinite; }
-  #cancelbtn { font-size: 1.1rem; font-weight: 800; padding: .35rem 1rem; border-radius: 10px; border: 2px solid var(--bad); background: #3a1111; color: #ffd0d0; cursor: pointer; }
-  #plangoal { font-size: clamp(1.5rem, 2.3vw, 2.5rem); font-weight: 800; color: #ffe9a8; margin: .35rem 0 .2rem; word-break: break-word; }
-  #planid { color: var(--muted); font-size: .85rem; }
-  #planhand { display: flex; flex-wrap: wrap; gap: .4rem; margin: .3rem 0; font-size: 1.6rem; }
-  #planhand:empty { display: none; }
-  #plantokwrap { display: none; margin: .5rem 0; padding: .5rem .7rem; border: 2px dashed var(--accent); border-radius: 10px; background: #061017; }
-  #plantokwrap.on { display: block; }
-  #plantokwrap .lbl { font-size: .9rem; color: var(--accent); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
-  #plantokens { font-size: clamp(18px, 1.6vw, 26px); line-height: 1.4; white-space: pre-wrap; word-break: break-word; max-height: 14em; overflow-y: auto; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
-  #plantokens .placeholder { color: var(--muted); font-style: italic; }
-  #steps { list-style: none; margin: .5rem 0 0; padding: 0; display: grid; gap: .45rem; }
-  #steps li.step { display: grid; grid-template-columns: 2.3em minmax(0, 1fr); gap: .1rem .7rem; align-items: center; padding: .5rem .6rem; border-radius: 10px; border: 2px solid #233046; background: #0b1119; }
-  #steps .ic { grid-row: span 2; font-size: clamp(1.8rem, 2.6vw, 2.8rem); font-weight: 900; text-align: center; line-height: 1; }
-  #steps .lbl { font-size: clamp(1.35rem, 2vw, 2.2rem); font-weight: 800; word-break: break-word; }
-  #steps .op { color: var(--accent); text-transform: uppercase; margin-right: .35em; }
-  #steps .sub { font-size: 1.05rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: .2rem 1rem; }
-  #steps .sub b { color: var(--text); }
-  #steps .res { font-size: 1.2rem; font-weight: 700; grid-column: 2; }
-  #steps .res.ok { color: var(--ok); } #steps .res.bad { color: var(--bad); }
-  #steps li.s-pending .ic { color: #5b6b80; }
-  #steps li.s-pending .lbl { color: #c3cddb; }
-  #steps li.s-running { border-color: var(--pill); background: #0d1a33; box-shadow: 0 0 0 2px rgba(31,111,235,.45), 0 0 18px rgba(31,111,235,.35); }
-  #steps li.s-running .ic { color: #8fc1ff; animation: pulse 1s ease-in-out infinite; }
-  #steps li.s-done { border-color: #1f5f3c; }
-  #steps li.s-done .ic { color: var(--ok); }
-  #steps li.s-failed { border-color: var(--bad); background: #220c0f; }
-  #steps li.s-failed .ic { color: var(--bad); }
-  #steps li.s-skipped .ic { color: var(--muted); }
-  #steps li.handmark { text-align: center; padding: .1rem 0; }
-  #steps li.handmark .handoff { font-size: 1.05rem; }
-  #steps li.empty { font-size: 1.2rem; }
-
-  #cellframebox { position: relative; aspect-ratio: 4 / 3; width: min(100%, 50vh); margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; display: grid; place-items: center; }
-  #cellframe { width: 100%; height: 100%; object-fit: contain; display: none; }
-  #cellnoframe { color: var(--muted); font-size: 1.3rem; font-weight: 700; text-align: center; padding: 1rem; }
-  #cellframecap { font-size: .9rem; color: var(--muted); margin-top: .3rem; }
-  .calib { font-size: 1.1rem; }
   .b-cal { background: var(--ok); color: #000; }
   .b-nocal { background: var(--bad); color: #fff; }
   .b-stale { background: var(--warn); color: #000; }
-  .tblwrap { overflow-x: auto; }
-  #objects { width: 100%; border-collapse: collapse; font-size: 1.15rem; }
-  #objects th { text-align: left; font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: .2rem .4rem; border-bottom: 1px solid var(--line); white-space: nowrap; }
-  #objects td { padding: .3rem .4rem; border-bottom: 1px solid #1b2433; white-space: nowrap; }
-  #objects td.n, #objects th.n { text-align: right; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
-  #objects td.nm { font-weight: 800; }
-  #objects td.vis { font-size: 1.35rem; font-weight: 900; text-align: center; }
-  #objects tr.v-yes td.vis { color: var(--ok); }
-  #objects tr.v-no td { color: #6f7d91; }
-  #objects tr.v-no td.vis { color: var(--bad); }
-  #objects .kind { font-size: .85rem; color: var(--muted); }
-  #arms { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: .6rem; }
-  .arm { background: #0b1119; border: 2px solid #233046; border-radius: 10px; padding: .55rem .7rem; min-width: 0; }
-  .arm.estop { border-color: var(--bad); box-shadow: 0 0 0 2px var(--bad), 0 0 20px rgba(255,77,77,.4); }
-  .arm.stale { opacity: .55; }
-  .arm .top { display: flex; align-items: baseline; flex-wrap: wrap; gap: .4rem; }
-  .arm .aname { font-size: 1.4rem; font-weight: 900; }
-  .arm .badges { display: flex; flex-wrap: wrap; gap: .3rem; margin: .3rem 0; }
-  .b-estop { background: var(--bad); color: #fff; font-size: 1rem; animation: pulse 1s ease-in-out infinite; }
-  .b-estopok { background: #0f3d26; color: var(--ok); border-color: var(--ok); }
   .b-idle { background: #333c4a; color: #fff; }
-  .pose { display: grid; grid-template-columns: repeat(auto-fill, minmax(4.6rem, 1fr)); gap: .3rem; }
-  .pose div { background: #121a26; border-radius: 8px; padding: .2rem .4rem; }
-  .pose .k { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
-  .pose .v { font-size: 1.4rem; font-weight: 800; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
-  .pose .u { font-size: .75rem; color: var(--muted); margin-left: .15em; }
-  .arm .foot { font-size: .85rem; color: var(--muted); margin-top: .3rem; word-break: break-word; }
-
-  /* collapsible cell section */
-  .collapser { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: .5rem; font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit; }
-  .collapser:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
-  .collapser .chev { display: inline-block; transition: transform .15s; font-size: 1.1em; }
-  #cellpanel.collapsed .collapser .chev { transform: rotate(-90deg); }
-  #cellpanel.collapsed #cellbody { display: none; }
-  #cellpanel.collapsed > h2 { margin-bottom: 0; }
+  .stack { display: grid; gap: .8rem; min-width: 0; }
 
   /* ---- LabMate ---- */
   #labpanel { border: 3px solid #6b5a2f; box-shadow: 0 0 30px rgba(255,210,63,.10); padding: .9rem 1.1rem; }
@@ -288,27 +156,58 @@
   .b-unplug { background: var(--bad); color: #fff; border-color: #ffb3b3; border-width: 2px; animation: pulse 1s ease-in-out infinite; }
   #labhand { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .4rem; font-size: 1.6rem; }
   #labhand:empty { display: none; }
-  .lab-ctl { display: flex; flex-wrap: wrap; align-items: stretch; gap: .7rem; margin-top: .7rem; }
-  #inspectbtn { font-size: 2rem; font-weight: 900; padding: .6rem 2rem; border-radius: 12px; border: 0; background: var(--leader); color: #000; cursor: pointer; letter-spacing: .03em; }
-  .fetchrow { display: flex; gap: .5rem; flex: 1 1 22rem; min-width: 0; }
-  #fetchitem { flex: 1; min-width: 0; font: inherit; font-size: 1.5rem; padding: .45rem .6rem; background: #05080d; color: var(--text); border: 2px solid var(--line); border-radius: 10px; }
+  .quick { display: flex; flex-wrap: wrap; align-items: stretch; gap: .5rem; margin-top: .6rem; }
+  .quick button { font-size: 1.15rem; font-weight: 900; padding: .4rem 1rem; border-radius: 10px; border: 0; cursor: pointer; }
+  #inspectbtn { background: var(--leader); color: #000; }
+  #scenebtn { background: #ffe9a8; color: #000; }
+  .fetchrow { display: flex; gap: .4rem; flex: 1 1 14rem; min-width: 0; }
+  #fetchitem { flex: 1; min-width: 0; font: inherit; font-size: 1.1rem; padding: .3rem .5rem; background: #05080d; color: var(--text); border: 2px solid var(--line); border-radius: 10px; }
   #fetchitem:focus { outline: none; border-color: var(--accent); }
-  #fetchbtn { font-size: 1.6rem; font-weight: 900; padding: .45rem 1.5rem; border-radius: 10px; border: 0; background: var(--accent); color: #000; cursor: pointer; }
-  #labstop { font-size: 1.6rem; font-weight: 900; padding: .45rem 1.6rem; border-radius: 10px; border: 3px solid var(--bad); background: #4a0f0f; color: #fff; cursor: pointer; }
-  #inspectbtn:disabled, #fetchbtn:disabled, #labstop:disabled, #answerbtn:disabled { opacity: .45; cursor: not-allowed; }
-  #labmsg { margin-top: .4rem; font-size: 1.05rem; min-height: 1.3em; }
+  #fetchbtn { background: var(--accent); color: #000; }
+  #labstop { border: 3px solid var(--bad) !important; background: #4a0f0f; color: #fff; }
+  .quick button:disabled, #chatsend:disabled { opacity: .45; cursor: not-allowed; }
+  #labmsg { margin-top: .3rem; font-size: .95rem; min-height: 1.2em; }
   #labmsg.err { color: var(--bad); font-weight: 700; }
   #labmsg.ok { color: var(--ok); }
-  #labstatus { font-size: clamp(1.3rem, 2vw, 2.1rem); font-weight: 800; color: #ffe9a8; margin: .1rem 0 .2rem; word-break: break-word; }
-  #labstatus:empty { display: none; }
-  #labstatus .bad { color: var(--bad); }
-  .labgrid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: .8rem; margin-top: .6rem; align-items: start; }
-  .benchrow { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: .7rem; align-items: start; }
-  #markedbox { position: relative; aspect-ratio: 4 / 3; width: 100%; max-height: 58vh; background: #000; border-radius: 8px; overflow: hidden; display: grid; place-items: center; }
+  .labmain { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: .8rem; margin-top: .6rem; align-items: start; }
+  .labbelow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .8rem; margin-top: .8rem; align-items: start; }
+  #markedbox { position: relative; aspect-ratio: 4 / 3; width: 100%; background: #000; border-radius: 8px; overflow: hidden; display: grid; place-items: center; }
   #marked { width: 100%; height: 100%; object-fit: contain; display: none; }
   #nomarked { color: var(--muted); font-size: 1.3rem; font-weight: 700; text-align: center; padding: 1rem; }
   #markedcap { font-size: .9rem; color: var(--muted); margin-top: .3rem; }
-  #labitems { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; }
+  #calbanner { display: none; margin-bottom: .5rem; padding: .5rem .8rem; border-radius: 10px; background: var(--bad); color: #fff; font-size: clamp(1.2rem, 2vw, 2rem); font-weight: 900; line-height: 1.2; }
+  #calbanner.on { display: block; }
+  #calbadge { font-size: 1rem; text-transform: none; letter-spacing: 0; }
+  .camrow { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin-top: .7rem; }
+  #scanbtn { font-size: 1.05rem; font-weight: 800; padding: .35rem .9rem; border-radius: 10px; border: 2px solid var(--accent); background: #07222b; color: var(--accent); cursor: pointer; }
+  #scanbtn:disabled { opacity: .5; cursor: wait; }
+  #camcur { color: var(--muted); font-size: .95rem; word-break: break-all; }
+  #camlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr)); gap: .5rem; margin-top: .5rem; }
+  .camopt { all: unset; box-sizing: border-box; cursor: pointer; background: #0b1119; border: 3px solid #233046; border-radius: 10px; padding: .25rem; text-align: center; min-width: 0; }
+  .camopt:focus-visible { outline: 2px solid var(--accent); }
+  .camopt.cur { border-color: var(--ok); box-shadow: 0 0 0 2px rgba(61,220,132,.4); }
+  .camopt img { width: 100%; display: block; border-radius: 6px; background: #000; aspect-ratio: 4 / 3; object-fit: cover; }
+  .camopt .cc { font-size: .9rem; font-weight: 700; margin-top: .2rem; }
+  .camopt .cc small { display: block; color: var(--muted); font-weight: 600; }
+  #labitems { list-style: none; margin: .6rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: .3rem; }
+  #chatbox { display: flex; flex-direction: column; }
+  #chatlog { height: clamp(26rem, 74vh, 62rem); overflow-y: auto; padding: .3rem; background: #070b11; border: 1px solid var(--line); border-radius: 10px; display: flex; flex-direction: column; gap: .6rem; }
+  .msg { max-width: 94%; padding: .5rem .8rem; border-radius: 14px; font-size: clamp(19px, 1.5vw, 26px); line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+  .msg .who { font-size: .55em; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: .1em; }
+  .msg.user { align-self: flex-end; background: #14315c; border: 2px solid #2b5aa3; }
+  .msg.bot { align-self: flex-start; background: #101a28; border: 2px solid #2a3b55; }
+  .msg.lab { align-self: flex-start; background: #1c1806; border: 2px solid #6b5a2f; }
+  .msg.lab .who { color: var(--leader); }
+  .msg.q { background: #2b2305; border: 3px solid var(--leader); color: #fff3c4; font-weight: 800; animation: pulse 1.4s ease-in-out infinite; }
+  .msg.q.answered { animation: none; border-width: 2px; opacity: .75; font-weight: 600; }
+  .msg .ph { color: var(--muted); font-style: italic; }
+  .stat { align-self: center; text-align: center; font-size: clamp(16px, 1.3vw, 22px); color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .4rem .7rem; }
+  .stat.hz { color: #000; background: var(--warn); border-radius: 10px; padding: .3rem .8rem; font-weight: 900; font-size: clamp(18px, 1.6vw, 26px); }
+  .stat button { font: inherit; font-weight: 900; padding: .1rem .8rem; border-radius: 8px; border: 3px solid #000; background: var(--bad); color: #fff; cursor: pointer; }
+  #chatform { display: flex; gap: .5rem; margin-top: .6rem; }
+  #chatin { flex: 1; min-width: 0; font-size: 1.4rem; padding: .5rem .8rem; background: #05080d; border: 2px solid var(--line); border-radius: 10px; }
+  #chatin:focus { outline: none; border-color: var(--accent); }
+  #chatsend { font-size: 1.4rem; font-weight: 900; padding: .5rem 1.4rem; border-radius: 10px; border: 0; background: var(--accent); color: #000; cursor: pointer; }
   #labitems li { font-size: clamp(1.25rem, 1.75vw, 1.9rem); font-weight: 800; padding: .2rem .5rem; border-radius: 8px; background: #0b1119; border: 2px solid #233046; word-break: break-word; }
   #labitems .mk { display: inline-block; min-width: 2.2em; color: var(--leader); font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
   #labitems .st { color: var(--muted); font-weight: 600; }
@@ -355,19 +254,6 @@
   #usecase .unk { font-size: clamp(1.4rem, 2.1vw, 2.2rem); font-weight: 800; color: var(--warn); }
   #usecase .missline { font-size: 1.3rem; font-weight: 800; margin-top: .4rem; color: #ffb3b3; }
   #usecase .missline.ok { color: var(--ok); }
-  .labstack { display: grid; gap: .8rem; margin-top: .8rem; }
-  #qbox { display: none; border: 3px solid var(--leader); background: #1c1806; }
-  #qbox.on { display: block; }
-  #qbox.answered { border-color: #5b5126; background: var(--panel2); }
-  #labq { font-size: clamp(1.6rem, 2.6vw, 2.9rem); font-weight: 800; color: #fff3c4; line-height: 1.25; word-break: break-word; }
-  #qbox.answered #labq { font-size: clamp(1.15rem, 1.6vw, 1.6rem); color: #d9cfa6; }
-  #answerform { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .6rem; }
-  #qbox.answered #answerform { display: none; }
-  #labans { flex: 1 1 18rem; min-width: 0; font-size: 1.6rem; padding: .5rem .8rem; background: #05080d; border: 2px solid var(--line); border-radius: 10px; }
-  #labans:focus { outline: none; border-color: var(--leader); }
-  #answerbtn { font-size: 1.6rem; font-weight: 900; padding: .5rem 1.6rem; border-radius: 10px; border: 0; background: var(--leader); color: #000; cursor: pointer; }
-  #labgiven { font-size: 1.4rem; font-weight: 700; color: var(--ok); margin-top: .35rem; word-break: break-word; }
-  #labgiven:empty { display: none; }
   #fetchbox { display: none; }
   #fetchbox.on { display: block; }
   #fetchbox.f-failed { border-color: var(--bad); }
@@ -379,12 +265,6 @@
   #fetchres:empty { display: none; }
   .steppills { display: flex; flex-wrap: wrap; gap: .3rem; }
   .steppills .badge { font-size: .95rem; }
-  #reportbox.streaming { border-color: var(--accent); border-width: 2px; }
-  #reportbox.done { border-color: var(--ok); border-width: 2px; }
-  #labreport { font-size: clamp(22px, 2.1vw, 34px); line-height: 1.45; white-space: pre-wrap; word-break: break-word; max-height: 60vh; overflow-y: auto; padding: .2rem; }
-  #labreport .placeholder { color: var(--muted); font-style: italic; font-size: .7em; }
-  #labarms { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: .6rem; }
-  .b-unplugged { background: var(--bad); color: #fff; font-size: 1rem; }
   #confirmbar {
     display: none; position: fixed; left: 0; right: 0; top: 0; z-index: 50;
     padding: .7rem 1rem; background: var(--warn); color: #000; text-align: center;
@@ -399,30 +279,26 @@
   @keyframes pulse { 50% { filter: brightness(1.35); } }
 
   @media (max-width: 1000px) {
-    .cols, .bottom, .cellgrid, .labgrid { grid-template-columns: minmax(0, 1fr); }
-    #answer { max-height: none; }
+    .bottom, .labmain, .labbelow { grid-template-columns: minmax(0, 1fr); }
   }
   @media (max-width: 560px) {
     html { font-size: 15px; }
     main { padding: .5rem; gap: .5rem; }
-    #askform { flex-direction: column; }
-    #goalform > * { flex: 1 1 100%; }
-    .benchrow { grid-template-columns: minmax(0, 1fr); }
-    #inspectbtn, #labstop { flex: 1 1 100%; }
+    .quick button { flex: 1 1 40%; }
     .fetchrow { flex: 1 1 100%; }
-    #answerform > * { flex: 1 1 100%; }
     #labpanel { padding: .6rem .6rem; }
     .lab-head h2 { font-size: 1.2rem; }
     .armcap { justify-content: flex-start; }
     #hazards li.hzd { grid-template-columns: auto minmax(0, 1fr); }
     #hazards .hs { grid-column: 2; justify-self: start; }
     #hazards .fix { grid-column: 1 / span 2; }
-    #steps li.step { grid-template-columns: 1.9em minmax(0, 1fr); padding: .4rem .45rem; }
-    #objects { font-size: 1rem; }
     .hdr-right { margin-left: 0; }
     #events li { grid-template-columns: 4.6em 1fr; }
     #events .n { display: none; }
     #banner { font-size: 1.25rem; }
+    #chatlog { height: 70vh; }
+    .msg { max-width: 100%; font-size: 19px; }
+    #chatform { flex-direction: column; }
   }
 </style>
 </head>
@@ -453,133 +329,53 @@
       <span id="armcap" class="armcap"></span>
     </div>
     <div id="labhand"></div>
-    <div class="lab-ctl">
-      <button id="inspectbtn" type="button">Inspect bench</button>
-      <form id="fetchform" class="fetchrow" autocomplete="off">
-        <select id="fetchitem" aria-label="item to fetch"><option value="">items appear after Inspect</option></select>
-        <button id="fetchbtn" type="submit">Fetch</button>
-      </form>
-      <button id="labstop" type="button" disabled>Stop</button>
+    <div class="labmain">
+      <section class="subpanel" id="benchbox">
+        <h3>Bench camera <span id="calbadge"></span> <span class="count" id="markednode"></span></h3>
+        <div id="calbanner"></div>
+        <div id="markedbox"><img id="marked" alt="bench camera"><div id="nomarked">no frame yet</div></div>
+        <div id="markedcap"></div>
+        <ol id="labitems"><li class="empty">press Inspect bench</li></ol>
+        <div class="camrow"><button id="scanbtn" type="button">Scan cameras</button><span id="camcur"></span></div>
+        <div id="camlist"></div>
+      </section>
+      <section class="subpanel" id="chatbox" aria-label="chat">
+        <h3>Chat</h3>
+        <div id="chatlog" aria-live="polite"></div>
+        <div id="labmsg"></div>
+        <div class="quick">
+          <button id="inspectbtn" type="button">Inspect bench</button>
+          <button id="scenebtn" type="button">Describe bench</button>
+          <form id="fetchform" class="fetchrow" autocomplete="off">
+            <select id="fetchitem" aria-label="item to fetch"><option value="">items appear after Inspect</option></select>
+            <button id="fetchbtn" type="submit">Fetch</button>
+          </form>
+          <button id="labstop" type="button" disabled>Stop</button>
+        </div>
+        <form id="chatform" autocomplete="off">
+          <input id="chatin" type="text" placeholder="Ask about the bench, or answer LabMate… (Enter)" aria-label="message">
+          <button id="chatsend" type="submit">Send</button>
+        </form>
+      </section>
     </div>
-    <div id="labmsg"></div>
-    <div id="labstatus"></div>
-    <section class="subpanel" id="qbox" aria-label="question for the scientist">
-      <h3>LabMate asks <span class="count" id="qstate"></span></h3>
-      <div id="labq"></div>
-      <div id="labgiven"></div>
-      <form id="answerform" autocomplete="off">
-        <input id="labans" type="text" placeholder="Your answer… (Enter)" aria-label="answer">
-        <button id="answerbtn" type="submit">Answer</button>
-      </form>
-    </section>
-    <div class="labgrid">
+    <div class="labbelow">
       <div class="stack">
-        <section class="subpanel">
-          <h3>Bench camera · numbered marks <span class="count" id="markednode"></span></h3>
-          <div class="benchrow">
-            <div id="markedbox"><img id="marked" alt="bench camera with numbered marks"><div id="nomarked">no marked frame yet</div></div>
-            <ol id="labitems"><li class="empty">press Inspect bench</li></ol>
-          </div>
-          <div id="markedcap"></div>
-        </section>
         <section class="subpanel" id="ucbox">
           <h3>Experiment <span class="count" id="ucconf"></span></h3>
           <div id="usecase"><div class="empty">no inspection yet</div></div>
-        </section>
-      </div>
-      <div class="stack">
-        <section class="subpanel" id="hazbox">
-          <h3>Hazards · safety first <span class="count" id="hazcount"></span></h3>
-          <ol id="hazards"><li class="empty">no inspection yet</li></ol>
         </section>
         <section class="subpanel" id="fetchbox">
           <h3>Fetch <span class="count mono" id="fetchid"></span></h3>
           <div id="fetchline"></div>
           <div id="fetchres"></div>
         </section>
-        <section class="subpanel">
-          <h3>Arm (arm.cell) <span class="count" id="labarmcount"></span></h3>
-          <div id="labarms"><div class="empty">no arm.cell telemetry</div></div>
-        </section>
       </div>
-    </div>
-    <div class="labstack">
-      <section class="subpanel" id="reportbox">
-        <h3>Report <span class="count mono" id="reportjob"></span></h3>
-        <div id="labreport"><span class="placeholder">The final report streams here after you answer the question.</span></div>
+      <section class="subpanel" id="hazbox">
+        <h3>Hazards · safety first <span class="count" id="hazcount"></span></h3>
+        <ol id="hazards"><li class="empty">no inspection yet</li></ol>
       </section>
     </div>
   </section>
-
-  <section class="panel" id="cellpanel" aria-label="robot cell">
-    <h2><button id="celltoggle" class="collapser" type="button" aria-expanded="true" aria-controls="cellbody"><span class="chev">▾</span>Robot cell</button> <span class="count" id="cellsum"></span></h2>
-    <div id="cellbody">
-    <div id="cellmsg"></div>
-    <div class="cellgrid">
-      <section class="subpanel" id="planbox">
-        <div class="plan-head">
-          <span id="planstate" class="badge ps ps-idle">NO PLAN</span>
-          <span id="planlead" class="plan-lead"></span>
-          <span class="grow"></span>
-          <button id="cancelbtn" type="button" disabled>Cancel</button>
-        </div>
-        <div id="plangoal">No plan yet: press Inspect bench in the LabMate panel</div>
-        <div id="planid" class="mono"></div>
-        <div id="planhand"></div>
-        <div id="plantokwrap"><div class="lbl">Gemma is planning… <span id="plantokjob" class="mono"></span></div><div id="plantokens"></div></div>
-        <ol id="steps"></ol>
-      </section>
-      <div class="stack">
-        <section class="subpanel">
-          <h3>Cell camera (annotated) <span class="count" id="cellframenode"></span></h3>
-          <div id="cellframebox"><img id="cellframe" alt="annotated cell camera frame"><div id="cellnoframe">no cell frame yet</div></div>
-          <div id="cellframecap"></div>
-        </section>
-        <section class="subpanel">
-          <h3>Objects <span id="calib" class="calib"></span><span class="count" id="objcount"></span></h3>
-          <div class="tblwrap"><table id="objects"><thead><tr><th>name</th><th>vis</th><th class="n">x mm</th><th class="n">y mm</th><th class="n">z mm</th><th class="n">yaw°</th></tr></thead><tbody></tbody></table></div>
-        </section>
-        <section class="subpanel">
-          <h3>Arms <span class="count" id="armcount"></span></h3>
-          <div id="arms"><div class="empty">no arm telemetry</div></div>
-        </section>
-      </div>
-    </div>
-    </div>
-  </section>
-
-  <div class="cols">
-    <div class="stack">
-      <section class="panel">
-        <form id="askform" autocomplete="off">
-          <input id="q" type="text" placeholder="Ask the swarm… (Enter)" aria-label="question">
-          <button id="askbtn" type="submit">Ask</button>
-        </form>
-        <div id="askmsg"></div>
-      </section>
-      <section class="panel" id="answerpanel">
-        <div class="ans-head">
-          <h2 style="margin:0">Live answer</h2>
-          <span id="jobstate" class="badge st-idle">IDLE</span>
-          <span id="jobid" class="mono" style="color:var(--muted);font-size:.9rem"></span>
-        </div>
-        <div id="question">No question yet</div>
-        <div id="jobmeta"></div>
-        <div id="answer"><span class="placeholder">Answers stream here, token by token.</span></div>
-      </section>
-    </div>
-    <div class="stack">
-      <section class="panel">
-        <h2>Camera <span class="count" id="framenode"></span></h2>
-        <div id="framebox"><img id="frame" alt="latest camera frame"><div id="noframe">no frame</div></div>
-        <div id="framecap"></div>
-      </section>
-      <section class="panel">
-        <h2>Tasks <span class="count" id="taskcount"></span></h2>
-        <ul class="list" id="tasks"><li class="empty">no tasks</li></ul>
-      </section>
-    </div>
-  </div>
 
   <div class="bottom">
     <section class="panel">
@@ -814,10 +610,8 @@
       refreshPeers();
       // the server sends ui.snapshot on connect; if it doesn't arrive, pull /state
       setTimeout(function () { if (S.ws === ws && !S.gotSnapshot) fetchState(host); }, 700);
-      frameTick();
       openTopics(host);
       primeTopics(host);
-      cellFrameTick();
       markedTick();
     };
     ws.onmessage = function (ev) {
@@ -878,23 +672,19 @@
     else if (t === 'report.sent') onReportSent(b);
     else if (t === 'event') addEvent(b);
     else if (t === 'plan.new' || t === 'plan.update') onPlan(b, true, t === 'plan.new');
-    else if (t.indexOf('task.') === 0) onTask(t, b);
   }
 
   function applySnapshot(b) {
     S.gotSnapshot = true;
     applyNodes(b);
     (Array.isArray(b.jobs) ? b.jobs : []).forEach(mergeSnapshotJob);
-    pickCurrentJob();
+    chatSnapshotJobs();
     (Array.isArray(b.reports) ? b.reports : []).forEach(function (r) { onReport(r, false); });
     (Array.isArray(b.events) ? b.events : []).forEach(addEvent);
-    (Array.isArray(b.tasks) ? b.tasks : []).forEach(function (tk) { onTask('task.snapshot', tk); });
     var pl = b.plans;
     if (pl && !Array.isArray(pl) && typeof pl === 'object') pl = Object.keys(pl).map(function (k) { return pl[k]; });
     (Array.isArray(pl) ? pl : []).forEach(function (p) { onPlan(p, false, false); });
-    if (Array.isArray(pl) && pl.length) pickCurrentPlan();
-    render.plan = render.lab = true;
-    render.answer = render.reports = render.tasks = render.events = true;
+    render.lab = render.reports = render.events = true;
     schedule();
   }
 
@@ -980,12 +770,10 @@
     if (Array.isArray(b.handoffs)) b.handoffs.forEach(function (h) { addHandoff(j, h); });
     if (Array.isArray(b.tokens)) b.tokens.forEach(function (tk) { addToken(j, tk, true); });
     if (live && isAskJob(j)) {
-      S.currentJobId = j.job_id;
+      chatAddJob(j.job_id);
       if (isNew) addLocalEvent('job', 'info', 'job ' + shortId(j.job_id) + ': "' + clip(j.question, 60) + '" → ' + (j.node_id || '?') + ' (' + (j.model || '?') + ')', j.node_id);
     }
-    render.answer = true; schedule();
-    if (isPlanJob(j.job_id)) render.plan = true;
-    if (S.labJobs[j.job_id]) render.lab = true;
+    render.lab = true; schedule();
   }
   function mergeSnapshotJob(b) {
     if (!b || !b.job_id) return;
@@ -1011,13 +799,11 @@
     if (!b || !b.job_id) return;
     var known = !!S.jobs[b.job_id];
     var j = ensureJob(b.job_id);
-    if (!known && isAskJob(j) && (!S.currentJobId || (S.jobs[S.currentJobId] && S.jobs[S.currentJobId].state === 'done'))) S.currentJobId = j.job_id;
+    if (!known && isAskJob(j)) chatAddJob(j.job_id);
     if (!j.node_id && b.node_id) j.node_id = b.node_id;
     if (addToken(j, b, false)) {
       if (b.node_id) j.node_id = b.node_id;
-      if (j.job_id === S.currentJobId) { render.answer = true; schedule(); }
-      if (isPlanJob(j.job_id)) { render.plan = true; schedule(); }
-      if (S.labJobs[j.job_id]) { render.lab = true; schedule(); }
+      render.lab = true; schedule();
     }
   }
   function addHandoff(j, h) {
@@ -1039,9 +825,8 @@
       if (b.to_node) j.node_id = b.to_node;
       if (live) addLocalEvent('handoff', 'warn', 'job ' + shortId(j.job_id) + ' handed ' + (b.from_node || '?') + ' ⟶ ' + (b.to_node || '?') +
         ' at token ' + b.at_seq + (b.gap_ms != null ? ' (gap ' + Math.round(b.gap_ms) + ' ms)' : '') + (b.vision_note ? ' — ' + b.vision_note : ''), b.to_node);
-      if (j.job_id === S.currentJobId || (!S.currentJobId && isAskJob(j))) { S.currentJobId = j.job_id; render.answer = true; schedule(); }
-      if (isPlanJob(j.job_id)) { render.plan = true; schedule(); }
-      if (S.labJobs[j.job_id]) { render.lab = true; schedule(); }
+      if (isAskJob(j)) chatAddJob(j.job_id);
+      render.lab = true; schedule();
     }
   }
   function onDone(b, live) {
@@ -1053,19 +838,7 @@
     if (typeof b.answer === 'string') j.answer = b.answer;
     j.done_ts = b.done_ts || (now() / 1000);
     if (live && was !== 'done') addLocalEvent('job', 'info', 'job ' + shortId(j.job_id) + ' done (' + Object.keys(j.tokens).length + ' tokens, ' + j.handoffs.length + ' handoff' + (j.handoffs.length === 1 ? '' : 's') + ')', j.node_id);
-    if (j.job_id === S.currentJobId) { render.answer = true; schedule(); }
-    if (isPlanJob(j.job_id)) { render.plan = true; schedule(); }
-    if (S.labJobs[j.job_id]) { render.lab = true; schedule(); }
-  }
-  function pickCurrentJob() {
-    var best = null;
-    Object.keys(S.jobs).forEach(function (id) {
-      var j = S.jobs[id];
-      if (!isAskJob(j)) return;
-      var t = j.started_ts ? tsMs(j.started_ts) : j.firstSeen;
-      if (!best || t > best.t) best = { id: id, t: t };
-    });
-    if (best) S.currentJobId = best.id;
+    render.lab = true; schedule();
   }
 
   // ---------------------------------------------------------------- reports / tasks / events
@@ -1088,18 +861,6 @@
     if (ids.length) addLocalEvent('report', 'info', 'uplink sent ' + ids.length + ' report' + (ids.length === 1 ? '' : 's') + ': ' + ids.map(shortId).join(', '));
     render.reports = true; schedule();
   }
-  var TASK_STATE = { 'task.submit': 'submitted', 'task.assign': 'assigned', 'task.progress': 'running', 'task.result': 'done' };
-  function onTask(type, b) {
-    if (!b || !b.task_id) return;
-    var prev = S.tasks[b.task_id];
-    var tk = Object.assign({}, prev || {}, b);
-    if (!b.state && TASK_STATE[type]) tk.state = TASK_STATE[type];
-    tk._ts = now();
-    S.tasks[b.task_id] = tk;
-    if (type !== 'task.snapshot' && (!prev || prev.state !== tk.state))
-      addLocalEvent('task', 'info', 'task ' + shortId(b.task_id) + ' [' + (tk.capability || '?') + '] ' + (tk.state || type) + (tk.assignee ? ' → ' + tk.assignee : ''), tk.assignee);
-    render.tasks = true; schedule();
-  }
   function addEvent(e) {
     if (!e) return;
     var ms = tsMs(e.ts);
@@ -1119,7 +880,7 @@
   function clip(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 
   // ---------------------------------------------------------------- rendering
-  var render = { nodes: true, banner: true, header: true, answer: true, events: true, reports: true, tasks: true, plan: true, cell: true, lab: true };
+  var render = { nodes: true, banner: true, header: true, events: true, reports: true, lab: true, answer: false, plan: false, cell: false, tasks: false };
   var scheduled = false;
   function schedule() {
     if (scheduled) return;
@@ -1132,12 +893,9 @@
     if (render.nodes) { render.nodes = false; renderNodes(); }
     if (render.banner) { render.banner = false; renderBanner(); }
     if (render.header) { render.header = false; renderHeader(); }
-    if (render.answer) { render.answer = false; renderAnswer(); }
     if (render.events) { render.events = false; renderEvents(); }
     if (render.reports) { render.reports = false; renderReports(); }
-    if (render.tasks) { render.tasks = false; renderTasks(); render.plan = render.lab = true; }   // assignees live on tasks
-    if (render.plan) { render.plan = false; renderPlan(); }
-    if (render.cell) { render.cell = false; renderCellState(); render.lab = true; }
+    if (render.answer || render.plan || render.cell || render.tasks) { render.answer = render.plan = render.cell = render.tasks = false; render.lab = true; }
     if (render.lab) { render.lab = false; renderLab(); }
   }
 
@@ -1208,31 +966,6 @@
   function renderHeader() {
     $('hleader').textContent = S.leader_id || 'none';
     $('hterm').textContent = S.term === null ? '—' : S.term;
-  }
-
-  function renderAnswer() {
-    var j = S.jobs[S.currentJobId];
-    var panel = $('answerpanel'), ans = $('answer');
-    if (!j) {
-      panel.className = 'panel';
-      $('jobstate').className = 'badge st-idle'; $('jobstate').textContent = 'IDLE';
-      return;
-    }
-    var done = j.state === 'done';
-    panel.className = 'panel ' + (done ? 'done' : 'streaming');
-    $('jobstate').className = 'badge ' + (done ? 'st-done' : 'st-streaming');
-    $('jobstate').textContent = done ? 'DONE' : 'STREAMING' + (j.node_id ? ' · ' + j.node_id : '');
-    $('jobid').textContent = j.job_id;
-    $('question').textContent = j.question ? '“' + j.question + '”' : '(question not received yet)';
-
-    var meta = $('jobmeta');
-    meta.textContent = '';
-    function m(k, v) { var s = el('span', null, k + ' '); s.appendChild(el('b', null, v)); meta.appendChild(s); }
-    m('model', j.model || '—');
-    m('vision', (j.vision_mode ? j.vision_mode + ': ' : '') + (j.vision_text ? j.vision_text : (j.has_image ? 'native image' : 'none')));
-    if (j.term !== null && j.term !== undefined) m('term', j.term);
-    if (j.handoffs.length) m('handoffs', j.handoffs.length);
-    fillJob(ans, j, done);
   }
 
   // job text with handoff markers, shared by the answer panel and the plan panel's planning stream
@@ -1306,97 +1039,6 @@
     $('reportcount').textContent = list.length ? (list.length - queued) + ' sent · ' + queued + ' queued' : '';
   }
 
-  function renderTasks() {
-    var ul = $('tasks');
-    var list = Object.keys(S.tasks).map(function (k) { return S.tasks[k]; })
-      .sort(function (a, b) { return (b._ts || 0) - (a._ts || 0); }).slice(0, 50);
-    ul.textContent = '';
-    list.forEach(function (t) {
-      var li = el('li');
-      li.appendChild(el('span', null, (t.capability || '?') + (t.assignee ? ' → ' + t.assignee : '')));
-      var st = String(t.state || '?');
-      var cls = /done|ok|success|complete/i.test(st) ? 'b-sent' : (/fail|error/i.test(st) ? 'b-dead' : 'b-queued');
-      li.appendChild(el('span', 'badge ' + cls, st.toUpperCase()));
-      li.appendChild(el('span', 'tid mono', t.task_id));
-      ul.appendChild(li);
-    });
-    if (!list.length) ul.appendChild(el('li', 'empty', 'no tasks'));
-    $('taskcount').textContent = list.length || '';
-  }
-
-  // ---------------------------------------------------------------- ask
-  var asking = false;
-  $('askform').addEventListener('submit', function (ev) {
-    ev.preventDefault();
-    var q = $('q').value.trim();
-    if (!q || asking) return;
-    asking = true;
-    $('askbtn').disabled = true;
-    var msg = $('askmsg');
-    msg.className = ''; msg.textContent = 'sending…';
-    var order = [];
-    if (S.host) order.push(S.host);
-    candidates().forEach(function (a) {
-      var p = S.peers[a];
-      if (order.indexOf(a) < 0 && p && (p.alive || now() - p.lastAlive < 5000)) order.push(a);
-    });
-    if (!order.length && S.origin) order.push(S.origin);
-    var errors = [];
-    var body = JSON.stringify({ question: q });
-    (function tryNext(i) {
-      if (i >= order.length) {
-        asking = false; $('askbtn').disabled = false;
-        msg.className = 'err';
-        msg.textContent = order.length ? 'Ask failed — ' + errors.join(' | ') : 'Ask failed — no known nodes';
-        return;
-      }
-      var host = order[i];
-      msg.textContent = 'sending to ' + hostLabel(host) + '…';
-      fetchJSON(HTTP + host + '/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body }, 4000)
-        .then(function (r) {
-          asking = false; $('askbtn').disabled = false;
-          msg.className = 'ok';
-          msg.textContent = 'queued job ' + ((r && r.job_id) || '?') + ' via ' + hostLabel(host) + ' → leader ' + ((r && r.leader_id) || '?');
-          $('q').value = '';
-          if (r && r.job_id) {
-            var j = ensureJob(r.job_id);
-            if (!j.question) j.question = q;
-            S.currentJobId = r.job_id;
-            render.answer = true; schedule();
-          }
-        }, function (e) {
-          errors.push(hostLabel(host) + ': ' + e.message);
-          tryNext(i + 1);
-        });
-    })(0);
-  });
-
-  // ---------------------------------------------------------------- camera frame
-  var frameBusy = false;
-  function frameTick() {
-    var host = S.host;
-    if (!host || frameBusy) return;
-    frameBusy = true;
-    var img = new Image();
-    var url = HTTP + host + '/frame.jpg?t=' + now();
-    var done = function (ok) {
-      frameBusy = false;
-      var f = $('frame'), nf = $('noframe');
-      if (ok) {
-        f.src = url; f.style.display = 'block'; nf.style.display = 'none';
-        $('framecap').textContent = 'updated ' + hhmmss(now());
-      } else {
-        f.style.display = 'none'; nf.style.display = 'block';
-        $('framecap').textContent = 'no frame from ' + hostLabel(host);
-      }
-      $('framenode').textContent = (S.peers[host] && S.peers[host].node_id) || host;
-    };
-    var to = setTimeout(function () { img.onload = img.onerror = null; done(false); }, 1800);
-    img.onload = function () { clearTimeout(to); done(true); };
-    img.onerror = function () { clearTimeout(to); done(false); };
-    img.src = url;
-  }
-  setInterval(frameTick, FRAME_EVERY_MS);
 
   // ================================================================ robot cell
   var TERMINAL = { done: 1, failed: 1, cancelled: 1, canceled: 1 };
@@ -1409,10 +1051,6 @@
   function planState(p) { return String((p && p.state) || 'planning').toLowerCase(); }
   function planKey(p) { var c = num(p.created_ts, null); return c !== null ? tsMs(c) : p._first; }
   function planUpd(p) { var u = num(p.updated_ts, null); return u !== null ? u : num(p.ts, null); }
-  function isPlanJob(id) {
-    var p = S.plans[S.currentPlanId];
-    return !!(p && id && p.job_id === id);
-  }
 
   // ---------------------------------------------------------------- plans
   function onPlan(b, live, isNewMsg) {
@@ -1434,14 +1072,6 @@
       addLocalEvent('plan', 'info', 'plan ' + shortId(id) + ' step ' + (p.step + 1) + '/' + p.steps.length + ': ' + stepLabel(p.steps[p.step]).join(' '), p.leader);
     }
     if (isLabPlan(p)) { onLabPlan(p, prev, live, isNewMsg); render.lab = true; schedule(); return; }   // LabMate panel
-    var cur = S.plans[S.currentPlanId];
-    if ((live && isNewMsg) || !cur || (cur !== p && planKey(p) > planKey(cur))) S.currentPlanId = id;
-    render.plan = true; schedule();
-  }
-  function pickCurrentPlan() {
-    var best = null;
-    Object.keys(S.plans).forEach(function (k) { var p = S.plans[k]; if (!isLabPlan(p) && (!best || planKey(p) > planKey(best))) best = p; });
-    if (best) S.currentPlanId = best.plan_id;
   }
   // remember each plan's leader so a mid-run change shows as a "handed over" marker
   function trackLeader(p, live) {
@@ -1492,95 +1122,6 @@
     return { ok: ok, text: (ok === null ? '' : (ok ? 'yes' : 'no')) + (why ? (ok === null ? '' : ' · ') + why : '') };
   }
 
-  function renderPlan() {
-    var p = S.plans[S.currentPlanId];
-    var box = $('planbox'), badge = $('planstate'), ul = $('steps');
-    var nplans = Object.keys(S.plans).filter(function (k) { return !isLabPlan(S.plans[k]); }).length;
-    $('cellsum').textContent = nplans ? nplans + ' plan' + (nplans === 1 ? '' : 's') : '';
-    if (!p) {
-      box.className = 'subpanel'; badge.className = 'badge ps ps-idle'; badge.textContent = 'NO PLAN';
-      $('cancelbtn').disabled = true;
-      ul.textContent = ''; $('plantokwrap').className = '';
-      return;
-    }
-    var st = planState(p);
-    box.className = 'subpanel p-' + st;
-    badge.className = 'badge ps ps-' + (st === 'canceled' ? 'cancelled' : st);
-    var cur = num(p.step, -1);
-    badge.textContent = st.toUpperCase() + (st === 'running' && p.steps.length && cur >= 0 ? ' · step ' + (cur + 1) + '/' + p.steps.length : '');
-    $('cancelbtn').disabled = !!TERMINAL[st] || cancelling;
-    $('plangoal').textContent = p.goal ? '“' + p.goal + '”' : '(goal not received yet)';
-    $('planid').textContent = p.plan_id + (p.job_id ? ' · job ' + p.job_id : '');
-
-    var lead = $('planlead');
-    lead.textContent = '';
-    if (p.leader) {
-      lead.appendChild(document.createTextNode('led by '));
-      lead.appendChild(el('span', 'badge b-leader', p.leader));
-      var ln = S.nodes[p.leader];
-      if (ln && ln.alive === false && !TERMINAL[st]) {
-        lead.appendChild(document.createTextNode(' '));
-        lead.appendChild(el('span', 'badge b-down', 'LEADER DOWN · waiting for takeover'));
-      }
-    } else lead.textContent = 'leader: —';
-
-    var tr = S.planTrack[p.plan_id] || { handovers: [] };
-    var hb = $('planhand');
-    hb.textContent = '';
-    tr.handovers.forEach(function (h) {
-      var pill = el('span', 'handoff', '⟶ handed over ' + h.from + ' → ' + h.to + (h.at_step !== null ? ' at step ' + (h.at_step + 1) : ''));
-      pill.title = 'leader changed mid-run at ' + hhmmss(h.ms);
-      hb.appendChild(pill);
-    });
-
-    // live Gemma tokens while planning
-    var tw = $('plantokwrap');
-    var j = p.job_id ? S.jobs[p.job_id] : null;
-    if (st === 'planning' && p.job_id) {
-      tw.className = 'on';
-      $('plantokjob').textContent = p.job_id + (j && j.node_id ? ' on ' + j.node_id : '');
-      if (j) fillJob($('plantokens'), j, j.state === 'done');
-      else { $('plantokens').textContent = ''; $('plantokens').appendChild(el('span', 'placeholder', 'waiting for tokens…')); }
-    } else if (st === 'planning') {
-      tw.className = 'on'; $('plantokjob').textContent = '';
-      $('plantokens').textContent = ''; $('plantokens').appendChild(el('span', 'placeholder', 'Gemma is writing the plan…'));
-    } else tw.className = '';
-
-    ul.textContent = '';
-    var hi = 0, hs = tr.handovers.filter(function (h) { return h.at_step !== null; });
-    function handMark(h) {
-      var li = el('li', 'handmark');
-      li.appendChild(el('span', 'handoff', '⟶ ' + h.to + ' took over from ' + h.from));
-      ul.appendChild(li);
-    }
-    p.steps.forEach(function (s, i) {
-      while (hi < hs.length && hs[hi].at_step <= i) handMark(hs[hi++]);
-      var sc = stepClass(p, s, i);
-      var li = el('li', 'step s-' + sc[0]);
-      li.appendChild(el('span', 'ic', sc[1]));
-      var lab = stepLabel(s), lbl = el('div', 'lbl');
-      lbl.appendChild(el('span', 'op', (i + 1) + '. ' + lab[0]));
-      lbl.appendChild(document.createTextNode(lab[1]));
-      li.appendChild(lbl);
-      var sub = el('div', 'sub');
-      var tk = s && s.task_id ? S.tasks[s.task_id] : null;
-      var who = (s && (s.assignee || s.node_id)) || (tk && tk.assignee) || null;
-      sub.appendChild(el('span', null, sc[2]));
-      if (who) { var a = el('span', null, '→ '); a.appendChild(el('b', null, who)); sub.appendChild(a); }
-      if (tk && tk.capability) sub.appendChild(el('span', 'mono', tk.capability));
-      if (s && s.task_id) sub.appendChild(el('span', 'mono', 'task ' + shortId(s.task_id)));
-      li.appendChild(sub);
-      var raw = s ? (s.result !== undefined && s.result !== null ? s.result : s.reason) : null;
-      var r = resultText(raw);
-      if (r) {
-        li.appendChild(el('div', 'res ' + (r.ok === true ? 'ok' : (r.ok === false || sc[0] === 'failed' ? 'bad' : '')),
-          (s.op === 'verify' ? 'verify: ' : (sc[0] === 'failed' ? 'reason: ' : 'result: ')) + r.text));
-      }
-      ul.appendChild(li);
-    });
-    while (hi < hs.length) handMark(hs[hi++]);
-    if (!p.steps.length) ul.appendChild(el('li', 'empty', st === 'planning' ? 'steps appear once Gemma answers…' : 'no steps'));
-  }
 
   // ---------------------------------------------------------------- POST with failover (like Ask)
   function postAny(path, payload, msgEl, onOk, onFail) {
@@ -1610,19 +1151,6 @@
     })(0);
   }
 
-  var cancelling = false;
-  $('cancelbtn').addEventListener('click', function () {
-    var p = S.plans[S.currentPlanId];
-    if (!p || cancelling) return;
-    cancelling = true; $('cancelbtn').disabled = true;
-    var msg = $('cellmsg');
-    postAny('/cell/plans/' + encodeURIComponent(p.plan_id) + '/cancel', {}, msg, function (r, host) {
-      cancelling = false;
-      msg.className = 'ok'; msg.textContent = 'cancel sent for plan ' + p.plan_id + ' via ' + hostLabel(host);
-      if (r && r.plan_id && r.state) onPlan(r, true, false);
-      render.plan = true; schedule();
-    }, function () { cancelling = false; render.plan = true; schedule(); });
-  });
 
   // ---------------------------------------------------------------- topics (cell.state, arm.*.state)
   var topicsDirty = false;
@@ -1680,120 +1208,12 @@
   setInterval(function () { if (topicsDirty) { topicsDirty = false; render.cell = true; schedule(); } }, TOPIC_FPS_MS);
   setInterval(function () { render.cell = true; schedule(); }, 1000);   // keep the age labels honest
 
-  function mm(v) { return typeof v === 'number' && isFinite(v) ? (v * 1000).toFixed(0) : '—'; }
-  function deg(v) { return typeof v === 'number' && isFinite(v) ? v.toFixed(1) : '—'; }
   function ageText(rec) { var a = (now() - rec.rx) / 1000; return a < 1.5 ? 'live' : a.toFixed(0) + ' s ago'; }
 
-  function renderCellState() {
-    // calibration + objects
-    var c = S.cell, d = c ? c.data : null;
-    var cal = $('calib');
-    cal.textContent = '';
-    if (d) {
-      var ok = !!d.calibrated;
-      cal.appendChild(el('span', 'badge ' + (ok ? 'b-cal' : 'b-nocal'), ok ? 'CALIBRATED' : 'NOT CALIBRATED'));
-      if (typeof d.reproj_err_px === 'number') cal.appendChild(document.createTextNode(' reproj ' + d.reproj_err_px.toFixed(2) + ' px'));
-      if (now() - c.rx > CELL_STALE_MS) { cal.appendChild(document.createTextNode(' ')); cal.appendChild(el('span', 'badge b-stale', 'STALE ' + ageText(c))); }
-    }
-    var tb = $('objects').tBodies[0];
-    tb.textContent = '';
-    var objs = d && Array.isArray(d.objects) ? d.objects : [];
-    var vis = 0;
-    objs.forEach(function (o) {
-      if (!o) return;
-      var v = !!o.visible;
-      if (v) vis++;
-      var tr = el('tr', v ? 'v-yes' : 'v-no');
-      var nm = el('td', 'nm', o.name || '?');
-      if (o.kind) { nm.appendChild(document.createTextNode(' ')); nm.appendChild(el('span', 'kind', o.kind)); }
-      tr.appendChild(nm);
-      tr.appendChild(el('td', 'vis', v ? '✓' : '✗'));
-      var t = Array.isArray(o.table) ? o.table : [];
-      tr.appendChild(el('td', 'n', mm(t[0])));
-      tr.appendChild(el('td', 'n', mm(t[1])));
-      tr.appendChild(el('td', 'n', mm(t[2])));
-      tr.appendChild(el('td', 'n', deg(o.yaw_deg)));
-      tb.appendChild(tr);
-    });
-    if (!objs.length) {
-      var er = el('tr'), td = el('td', 'empty', c ? 'no objects in cell.state' : 'waiting for cell.state…');
-      td.colSpan = 6; er.appendChild(td); tb.appendChild(er);
-    }
-    $('objcount').textContent = c ? vis + '/' + objs.length + ' visible · ' + (d.camera || c.origin || '?') + ' · ' + ageText(c) : '';
-
-    // arms
-    var box = $('arms');
-    var ids = Object.keys(S.arms).sort();
-    box.textContent = '';
-    ids.forEach(function (topic) { box.appendChild(armCard(topic, S.arms[topic])); });
-    if (!ids.length) box.appendChild(el('div', 'empty', 'no arm telemetry'));
-    $('armcount').textContent = ids.length || '';
-  }
-  // one arm.<id>.state card; extra(badges, a, rec) may add badges (LabMate adds UNPLUGGED)
-  function armCard(topic, rec, extra) {
-    var a = rec.data || {};
-    var stale = now() - rec.rx > CELL_STALE_MS;
-    var estop = !!a.estop;
-    var card = el('div', 'arm' + (estop ? ' estop' : '') + (stale ? ' stale' : ''));
-    var top = el('div', 'top');
-    top.appendChild(el('span', 'aname', topic.replace(/\.state$/, '')));
-    if (a.driver) top.appendChild(el('span', 'chip mono', a.driver));
-    card.appendChild(top);
-    var bd = el('div', 'badges');
-    bd.appendChild(el('span', 'badge ' + (estop ? 'b-estop' : 'b-estopok'), estop ? 'E-STOP' : 'E-STOP CLEAR'));
-    var busy = !!(a.busy || a.moving);
-    bd.appendChild(el('span', 'badge ' + (busy ? 'b-busy' : 'b-idle'), busy ? 'BUSY' : 'IDLE'));
-    if (a.fault) bd.appendChild(el('span', 'badge b-dead', 'FAULT'));
-    if (a.connected === false) bd.appendChild(el('span', 'badge b-unhealthy', 'DISCONNECTED'));
-    if (stale) bd.appendChild(el('span', 'badge b-stale', 'STALE'));
-    if (extra) extra(bd, a, rec, card);
-    card.appendChild(bd);
-    var grid = el('div', 'pose');
-    function cell(k, v, u) {
-      var dv = el('div'); dv.appendChild(el('div', 'k', k));
-      var vv = el('div', 'v', v); if (u) vv.appendChild(el('span', 'u', u));
-      dv.appendChild(vv); grid.appendChild(dv);
-    }
-    var P = armPose(a);
-    if (P) { cell('x', P.x, 'mm'); cell('y', P.y, 'mm'); cell('z', P.z, 'mm'); cell('yaw', P.yaw, '°'); }
-    var g = armGrip(a);
-    if (g !== null) cell('gripper', g, '% open');
-    if (!P && a.joints && typeof a.joints === 'object') {
-      Object.keys(a.joints).slice(0, 7).forEach(function (jn) { cell(jn.replace(/_/g, ' '), deg(a.joints[jn]), '°'); });
-    }
-    card.appendChild(grid);
-    var foot = [];
-    if (a.action) foot.push('doing ' + a.action);
-    if (a.mode) foot.push('mode ' + a.mode);
-    if (estop && a.estop_reason) foot.push('e-stop: ' + a.estop_reason);
-    if (a.fault && typeof a.fault === 'string') foot.push('fault: ' + a.fault);
-    if (a.task_id) foot.push('task ' + shortId(a.task_id));
-    foot.push('from ' + (rec.origin || '?') + ' · ' + ageText(rec));
-    card.appendChild(el('div', 'foot', foot.join(' · ')));
-    return card;
-  }
-  // pose in arm-base metres (contract) -> mm; accepts {x,y,z,yaw}, [x,y,z,yaw] / [x,y,z,r,p,yaw], flat x/y/z, or pose_mm
-  function armPose(a) {
-    var p = a.pose_mm || a.pose || a.tcp || a.ee_pose || null, givenMm = !!a.pose_mm;
-    var x, y, z, yaw;
-    if (Array.isArray(p)) { x = p[0]; y = p[1]; z = p[2]; yaw = p.length >= 6 ? p[5] : p[3]; }
-    else if (p && typeof p === 'object') { x = p.x; y = p.y; z = p.z; yaw = p.yaw !== undefined ? p.yaw : p.yaw_deg; }
-    else if (typeof a.x === 'number') { x = a.x; y = a.y; z = a.z; yaw = a.yaw !== undefined ? a.yaw : a.yaw_deg; }
-    else return null;
-    var f = givenMm ? 1 : 1000;
-    function m(v) { return typeof v === 'number' && isFinite(v) ? (v * f).toFixed(0) : '—'; }
-    return { x: m(x), y: m(y), z: m(z), yaw: deg(yaw) };
-  }
-  function armGrip(a) {
-    var g = a.gripper;
-    if (g && typeof g === 'object') g = g.value !== undefined ? g.value : g.pos;
-    if (typeof g !== 'number' || !isFinite(g)) return null;
-    return (g <= 1 ? g * 100 : g).toFixed(0);
-  }
 
   // ---------------------------------------------------------------- polled JPEG views (1 s): annotated cell frame, LabMate marks
   // Fetched as blobs so a 404/timeout shows a message instead of a broken image; the previous blob is freed once the new one shows.
-  function framePoller(path, ids, texts, skip, capExtra) {
+  function framePoller(path, ids, texts, skip, capExtra, hostFn) {
     var busy = false, url = null, shown = null;
     $(ids.img).onload = function () {
       if (shown && shown !== url) { try { URL.revokeObjectURL(shown); } catch (e) { /* ignore */ } }
@@ -1804,7 +1224,7 @@
       var nf = $(ids.none); nf.style.display = 'block'; nf.textContent = text;
     }
     return function tick() {
-      var host = S.host;
+      var host = hostFn ? hostFn() : S.host;      // hostFn: poll a specific node (e.g. the bench camera node)
       if (!host || !S.wsOpen || busy || (skip && skip())) return;
       busy = true;
       var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -1812,14 +1232,14 @@
       var label = (S.peers[host] && S.peers[host].node_id) || host;
       var opts = { cache: 'no-store' };
       if (ctl) opts.signal = ctl.signal;
-      fetch(HTTP + host + path + '?t=' + now(), opts)
+      fetch(HTTP + host + (typeof path === 'function' ? path() : path) + '?t=' + now(), opts)
         .then(function (r) {
           if (!r.ok) { var e = new Error('HTTP ' + r.status); e.status = r.status; throw e; }
           return r.blob();
         })
         .then(function (blob) {
           clearTimeout(timer); busy = false;
-          if (S.host !== host) return;
+          if (!hostFn && S.host !== host) return;
           url = URL.createObjectURL(blob);
           var f = $(ids.img);
           f.src = url; f.style.display = 'block'; $(ids.none).style.display = 'none';
@@ -1827,20 +1247,16 @@
           $(ids.node).textContent = label;
         }, function (e) {
           clearTimeout(timer); busy = false;
-          if (S.host !== host) return;
+          if (!hostFn && S.host !== host) return;
           noFrame(e && e.status === 404 ? texts.missing : texts.down);
           $(ids.cap).textContent = (e && e.status ? 'HTTP ' + e.status : 'unreachable') + ' from ' + hostLabel(host);
           $(ids.node).textContent = label;
         });
     };
   }
-  var cellFrameTick = framePoller('/cell/frame.jpg',
-    { img: 'cellframe', none: 'cellnoframe', cap: 'cellframecap', node: 'cellframenode' },
-    { missing: 'no annotated frame yet', down: 'cell camera unavailable' },
-    function () { return cellCollapsed; });
-  var markedTick = framePoller('/cell/marked.jpg',
+  var markedTick = framePoller(function () { return calibState() === false ? '/frame.jpg' : '/cell/marked.jpg'; },
     { img: 'marked', none: 'nomarked', cap: 'markedcap', node: 'markednode' },
-    { missing: 'no marked frame yet', down: 'bench camera unavailable' },
+    { missing: 'no marked frame yet (is the table calibrated?)', down: 'bench camera unavailable' },
     null,
     function () {
       var b = S.blobs, d = b && b.data;
@@ -1848,27 +1264,16 @@
       var n = Array.isArray(d.blobs) ? d.blobs.length : 0;
       return ' · ' + n + ' blob' + (n === 1 ? '' : 's') + (d.calibrated === false ? ' · NOT CALIBRATED' : '') +
         (d.background === false ? ' · no background snapshot' : '') + ' · ' + ageText(b);
-    });
-  setInterval(cellFrameTick, CELL_FRAME_EVERY_MS);
+    },
+    function () { var n = benchNode(); return n ? addrOfNode(n) : S.host; });   // the node whose camera runs the perception
+  function benchNode() {
+    var l = nodeList().filter(function (n) { return n.alive !== false && capsOf(n).indexOf('vision.cell') >= 0 && addrOfNode(n); });
+    return l.length ? l[0] : null;
+  }
   setInterval(markedTick, CELL_FRAME_EVERY_MS);
 
   // ================================================================ LabMate (docs/LABMATE.md)
   // Plans carrying a `lab` field are LabMate's: an inspect plan (hazards, experiment, question, report) and fetch plans.
-  var CELL_OPEN_KEY = 'swarmmind.cellopen.v1';
-  var cellCollapsed = true;
-  try { cellCollapsed = localStorage.getItem(CELL_OPEN_KEY) !== '1'; } catch (e) { /* storage unavailable */ }
-  function applyCellCollapse() {
-    $('cellpanel').classList.toggle('collapsed', cellCollapsed);
-    $('celltoggle').setAttribute('aria-expanded', cellCollapsed ? 'false' : 'true');
-  }
-  $('celltoggle').addEventListener('click', function () {
-    cellCollapsed = !cellCollapsed;
-    try { localStorage.setItem(CELL_OPEN_KEY, cellCollapsed ? '0' : '1'); } catch (e) { /* ignore */ }
-    applyCellCollapse();
-    if (!cellCollapsed) cellFrameTick();
-  });
-  applyCellCollapse();
-
   // fallback copy of capability_config.cell.catalog.use_cases, used only when the plan doesn't say what's needed
   var USE_CASES = {
     spring_pendulum: { title: 'Spring pendulum', needs: ['spring', 'stand', 'ruler'], optional: ['multimeter'] },
@@ -1956,10 +1361,10 @@
   }
   function onLabPlan(p, prev, live, isNewMsg) {
     var L = labOf(p);
+    chatLabPlan(p, prev, live);
     [L.report_job_id, L.report_job, p.report_job_id, L.job_id, L.label_job_id, p.job_id].forEach(function (id) {
       if (typeof id !== 'string' || !id || S.labJobs[id]) return;
       S.labJobs[id] = true;                                    // never shown in the Ask panel
-      if (S.currentJobId === id) { S.currentJobId = null; pickCurrentJob(); render.answer = true; }
     });
     var its = labItemsOf(p);
     if (its.length && (S.labItemsKey === undefined || planKey(p) >= S.labItemsKey)) { S.labItems = its; S.labItemsKey = planKey(p); }
@@ -2085,10 +1490,7 @@
     var prov = renderArmCap();
     $('labstop').disabled = !act || labBusy.stop;
     $('inspectbtn').disabled = labBusy.inspect;
-    var stx = shown ? labStatusText(shown, byMark) : ['', ''];
-    var sl = $('labstatus');
-    sl.textContent = '';
-    if (stx[1]) sl.appendChild(el('span', stx[0] || null, stx[1]));
+    $('scenebtn').disabled = labBusy.scene;
 
     // fetch dropdown from the latest agreed labels (keeps the operator's selection)
     var sel = $('fetchitem');
@@ -2118,7 +1520,7 @@
     var camItems = S.labItems.slice().sort(function (a, b) { return num(a.mark, 999) - num(b.mark, 999); });
     camItems.forEach(function (it) {
       var li = el('li', hazMarks[it.mark] ? 'hz' : null);
-      li.appendChild(el('span', 'mk', it.mark !== undefined ? '#' + it.mark : '#?'));
+      li.appendChild(el('span', 'mk', it.mark !== undefined ? '#' + it.mark : ''));
       li.appendChild(document.createTextNode(pretty(it.item)));
       if (it.state) li.appendChild(el('span', 'st', ' (' + pretty(it.state) + ')'));
       if (hazMarks[it.mark]) li.appendChild(el('span', 'st', ' ⚠'));
@@ -2214,26 +1616,6 @@
       ucb.appendChild(el('div', 'missline' + (missing.length ? '' : ' ok'), missing.length ? 'Missing: ' + missing.map(pretty).join(', ') : 'All required tools present ✓'));
     }
 
-    // the question
-    var qb = $('qbox'), mst = planState(main);
-    var awaiting = !!main && /^awaiting/.test(mst);
-    var qtext = L.question ? String(L.question) : '';
-    if (main && (qtext || awaiting)) {
-      var ans = L.answer;
-      var ansText = ans && typeof ans === 'object' ? (ans.text || L.answer_text || ans.experiment || '') : (ans ? String(ans) : (L.answer_text || ''));
-      qb.className = 'subpanel on' + (awaiting ? '' : ' answered');
-      $('labq').textContent = qtext || '(question not received yet)';
-      $('qstate').textContent = awaiting ? 'waiting for your answer' : (ansText ? 'answered' : '');
-      var given = $('labgiven');
-      given.textContent = ansText ? 'You said: “' + ansText + '”' : '';
-      if (ans && typeof ans === 'object' && ans.experiment && ans.experiment !== ansText && ans.experiment !== 'unknown') given.textContent += ' · experiment: ' + ans.experiment;
-      if (ans && typeof ans === 'object' && ans.phase && ans.phase !== 'unknown') given.textContent += ' · phase: ' + pretty(ans.phase);
-      $('answerbtn').disabled = labBusy.answer || !awaiting;
-      if (awaiting && !focusedQ[main.plan_id] && document.activeElement !== $('labans')) {
-        focusedQ[main.plan_id] = true;
-        try { $('labans').focus({ preventScroll: true }); } catch (e) { /* ignore */ }
-      }
-    } else qb.className = 'subpanel';
 
     // fetch card
     var fbx = $('fetchbox');
@@ -2267,54 +1649,16 @@
       else { fr.className = ''; fr.textContent = FL.message || (prov.length ? '' : 'waiting for an arm (arm.cell unplugged)'); }
     } else fbx.className = 'subpanel';
 
-    // the report: live tokens (with handoff markers) once the report job is known, else the plan's text
-    var rb = $('reportbox'), rep = $('labreport');
     var rid = main ? reportJobId(main) : null;
-    var rj = rid ? S.jobs[rid] : null;
     if (rid) S.labJobs[rid] = true;
-    var reportText = typeof L.report === 'string' ? L.report : (L.report && (L.report.text || L.report.answer)) || '';
-    $('reportjob').textContent = rid ? rid + (rj && rj.node_id ? ' · ' + rj.node_id : '') : '';
-    if (rj && (Object.keys(rj.tokens).length || rj.answer || rj.handoffs.length)) {
-      var rdone = rj.state === 'done' || (!!reportText && !!TERMINAL[mst]);
-      rb.className = 'subpanel ' + (rdone ? 'done' : 'streaming');
-      fillJob(rep, rj, rdone);
-    } else if (reportText) {
-      rb.className = 'subpanel done';
-      rep.textContent = reportText;
-      rep.appendChild(el('span', 'donemark', '■ done'));
-    } else if (main && !TERMINAL[mst] && (/report/.test(mst) || rid)) {
-      rb.className = 'subpanel streaming';
-      rep.textContent = '';
-      rep.appendChild(el('span', 'placeholder', 'Gemma is writing the report…'));
-      rep.appendChild(el('span', 'cursor'));
-    } else {
-      rb.className = 'subpanel';
-      rep.textContent = '';
-      rep.appendChild(el('span', 'placeholder', awaiting ? 'Answer the question above and the report streams here.' : 'The final report streams here after you answer the question.'));
-    }
+    renderCal(); renderCam(); renderChat();
 
-    // arm.cell.<id>.state cards; UNPLUGGED once the publishing node stops advertising arm.cell
-    var ab = $('labarms');
-    ab.textContent = '';
-    var provIds = {};
-    prov.forEach(function (n) { provIds[n.node_id] = true; });
-    var armTopics = Object.keys(S.arms).filter(function (t) { return /^arm\.cell(\.|$)/.test(t); }).sort();
-    armTopics.forEach(function (topic) {
-      ab.appendChild(armCard(topic, S.arms[topic], function (bd, a, rec, card) {
-        if (rec.origin && S.nodesInit && !provIds[rec.origin]) {
-          bd.appendChild(el('span', 'badge b-unplugged', S.nodes[rec.origin] && S.nodes[rec.origin].alive === false ? 'HOST DOWN' : 'UNPLUGGED'));
-          card.classList.add('stale');
-        }
-      }));
-    });
-    if (!armTopics.length) ab.appendChild(el('div', 'empty', 'no arm.cell telemetry'));
-    $('labarmcount').textContent = armTopics.length ? armTopics.length + ' arm' + (armTopics.length === 1 ? '' : 's') : '';
   }
   // the countdown ticks while a confirm window is open
   setInterval(function () { if ($('confirmbar').className === 'on' || /CONFIRMING/.test($('hazards').textContent)) { render.lab = true; schedule(); } }, 200);
 
   // ---------------------------------------------------------------- LabMate actions (same peer fallback as Ask/Build)
-  var labBusy = { inspect: false, fetch: false, answer: false, stop: false };
+  var labBusy = { inspect: false, scene: false, fetch: false, chat: false, stop: false };
   function labPlaceholder(r, base) {
     var pid = r && (r.plan_id || (r.plan && r.plan.plan_id));
     if (r && r.plan && r.plan.plan_id) onPlan(r.plan, true, true);
@@ -2362,23 +1706,243 @@
       render.lab = true; schedule();
     }, function () { labBusy.fetch = false; render.lab = true; schedule(); });
   });
-  $('answerform').addEventListener('submit', function (ev) {
-    ev.preventDefault();
-    var text = $('labans').value.trim();
-    var main = S.plans[S.labMainId];
-    if (!text || labBusy.answer) return;
-    labBusy.answer = true; render.lab = true; schedule();
+  $('scenebtn').addEventListener('click', function () {
+    if (labBusy.scene) return;
+    labBusy.scene = true; render.lab = true; schedule();
     var msg = $('labmsg');
-    postAny('/lab/answer', { text: text, plan_id: main ? main.plan_id : undefined }, msg, function (r, host) {
-      labBusy.answer = false;
+    postAny('/lab/scene', {}, msg, function (r, host) {
+      labBusy.scene = false;
       if (!swarmSaidNo(r, msg)) {
-        msg.className = 'ok'; msg.textContent = 'answer sent ' + viaText(r, host, r && r.plan_id);
-        $('labans').value = '';
-        if (r && r.plan_id && r.state && r.lab) onPlan(r, true, false);
+        var pid = labPlaceholder(r, { goal: 'describe the bench', kind: 'lab', state: 'labelling', lab: { mode: 'scene' } });
+        msg.className = 'ok'; msg.textContent = 'describe requested: ' + viaText(r, host, pid);
       }
       render.lab = true; schedule();
-    }, function () { labBusy.answer = false; render.lab = true; schedule(); });
+    }, function () { labBusy.scene = false; render.lab = true; schedule(); });
   });
+
+  // ---------------------------------------------------------------- chat timeline
+  // items: {kind:'job', job_id} (question bubble + streaming answer) | 'user' | 'lq' (LabMate question) | 'report' | 'status'
+  S.chat = []; S.chatJobs = {}; S.chatKeys = {};
+  var lastStat = {};
+  function chatPush(it) {
+    if (it.key) { if (S.chatKeys[it.key]) return; S.chatKeys[it.key] = true; }
+    S.chat.push(it); render.lab = true; schedule();
+  }
+  function chatAddJob(id) {
+    if (S.chatJobs[id]) return;
+    S.chatJobs[id] = true;
+    chatPush({ kind: 'job', job_id: id });
+  }
+  function chatSnapshotJobs() {
+    Object.keys(S.jobs).map(function (k) { return S.jobs[k]; }).filter(isAskJob)
+      .sort(function (a, b) { return num(a.started_ts, 0) - num(b.started_ts, 0); })
+      .forEach(function (j) { chatAddJob(j.job_id); });
+  }
+  function reportTextOf(p) {
+    var L = labOf(p);
+    return typeof L.report === 'string' ? L.report : (L.report && (L.report.text || L.report.answer)) || '';
+  }
+  function chatStatusText(p) {
+    var st = planState(p);
+    if (/^awaiting|confirm|announc/.test(st)) return null;
+    if (isFetchPlan(p) && /^(done|ok|complete)/.test(st)) return '✓ ' + pretty(fetchItemOf(p)) + ' is on the handover spot';
+    if (/report/.test(st)) return null;   // the report bubble shows it
+    var t = labStatusText(p, itemsByMark(S.labItems))[1];
+    if (t === 'Inspection complete' && labOf(p).mode === 'scene') t = 'Bench described';
+    if (/two labelling passes/.test(t)) t = labOf(p).mode === 'scene' ? 'Describing the bench…' : 'Inspecting the bench…';
+    return t || null;
+  }
+  function chatLabPlan(p, prev, live) {
+    var L = labOf(p), st = planState(p);
+    if (L.question && String(L.question)) chatPush({ kind: 'lq', key: 'q:' + p.plan_id + ':' + L.question, plan_id: p.plan_id, text: String(L.question) });
+    if (!isFetchPlan(p) && (reportJobId(p) || reportTextOf(p) || /report/.test(st))) chatPush({ kind: 'report', key: 'r:' + p.plan_id, plan_id: p.plan_id });
+    if (!live) return;
+    var t = chatStatusText(p);
+    if (t && lastStat[p.plan_id] !== t) { lastStat[p.plan_id] = t; chatPush({ kind: 'status', text: t }); }
+    var ph = prev && Array.isArray(labOf(prev).hazards) ? labOf(prev).hazards : [];
+    var bm = itemsByMark(labItemsOf(p).length ? labItemsOf(p) : S.labItems);
+    (Array.isArray(L.hazards) ? L.hazards : []).forEach(function (h, i) {
+      var s = hazStatus(h), w = ph[i] ? hazStatus(ph[i]) : null;
+      if (s === w) return;
+      if (s === 'confirming') chatPush({ kind: 'status', key: 'hz:' + p.plan_id + ':' + i, hz: { plan_id: p.plan_id, idx: i } });
+      else if (s === 'moved') chatPush({ kind: 'status', key: 'hzm:' + p.plan_id + ':' + i, text: 'Hazard cleared: ' + hazItem(h, bm) });
+    });
+  }
+  function bubble(cls, who, text) {
+    var b = el('div', 'msg ' + cls);
+    if (who) b.appendChild(el('div', 'who', who));
+    var body = el('div', 'body');
+    if (text !== undefined && text !== null) body.textContent = text;
+    b.appendChild(body);
+    return { box: b, body: body };
+  }
+  function renderChat() {
+    var log = $('chatlog');
+    var near = log.scrollHeight - log.scrollTop - log.clientHeight < 100, top = log.scrollTop;
+    var frag = document.createDocumentFragment(), n = 0;
+    var main = S.plans[S.labMainId];
+    S.chat.forEach(function (it) {
+      var k = it.kind, b;
+      if (k === 'job') {
+        var j = S.jobs[it.job_id];
+        if (!j || !isAskJob(j)) return;
+        n++;
+        if (j.question) frag.appendChild(bubble('user', 'You', j.question).box);
+        b = bubble('bot', 'Gemma' + (j.node_id ? ' · ' + j.node_id : ''));
+        fillJob(b.body, j, j.state === 'done');
+        frag.appendChild(b.box);
+      } else if (k === 'user') {
+        n++; frag.appendChild(bubble('user', 'You', it.text).box);
+      } else if (k === 'lq') {
+        n++;
+        var pl = S.plans[it.plan_id];
+        var open = pl && /^awaiting/.test(planState(pl)) && String(labOf(pl).question || '') === it.text;
+        b = bubble('lab q' + (open ? '' : ' answered'), 'LabMate asks', it.text);
+        frag.appendChild(b.box);
+      } else if (k === 'report') {
+        var p = S.plans[it.plan_id];
+        if (!p) return;
+        n++;
+        b = bubble('lab', 'LabMate report');
+        var rid = reportJobId(p), rj = rid ? S.jobs[rid] : null, txt = reportTextOf(p), mst = planState(p);
+        if (rj && (Object.keys(rj.tokens).length || rj.answer || rj.handoffs.length)) fillJob(b.body, rj, rj.state === 'done' || (!!txt && !!TERMINAL[mst]));
+        else if (txt) { b.body.textContent = txt; b.body.appendChild(el('span', 'donemark', '■ done')); }
+        else { b.body.appendChild(el('span', 'ph', 'Writing the report…')); b.body.appendChild(el('span', 'cursor')); }
+        frag.appendChild(b.box);
+      } else if (k === 'status') {
+        var row = el('div', 'stat');
+        if (it.hz) {
+          var hp = S.plans[it.hz.plan_id], hz = hp && (labOf(hp).hazards || [])[it.hz.idx];
+          if (!hz) return;
+          var item = hazItem(hz, itemsByMark(labItemsOf(hp).length ? labItemsOf(hp) : S.labItems));
+          if (hazStatus(hz) === 'confirming' && !TERMINAL[planState(hp)]) {
+            row.className = 'stat hz';
+            var left = Math.max(0, Math.ceil(confirmLeft(hp, hz, it.hz.idx) / 1000));
+            row.appendChild(el('span', null, 'Moving ' + item + ' to ' + pretty(hz.to || 'safe tray') + ' in ' + left + ' s'));
+            var cb = el('button', null, 'Cancel');
+            cb.type = 'button';
+            cb.addEventListener('click', function () { labStop(hp); });
+            row.appendChild(cb);
+          } else row.appendChild(el('span', null, 'Safe-tray move of ' + item + ': ' + hazInfo(hz)[1]));
+        } else row.appendChild(el('span', null, it.text));
+        frag.appendChild(row);
+      }
+    });
+    if (!n && !S.chat.length) frag.appendChild(el('div', 'stat', 'Chat with Gemma about the bench, or tell it what to do: "bring me the screwdriver", "put the spring in the tray".'));
+    log.textContent = '';
+    log.appendChild(frag);
+    log.scrollTop = near ? log.scrollHeight : top;
+  }
+  $('chatform').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var text = $('chatin').value.trim();
+    if (!text || labBusy.chat) return;
+    var main = S.plans[S.labMainId], msg = $('labmsg');
+    labBusy.chat = true; $('chatsend').disabled = true;
+    function fin() { labBusy.chat = false; $('chatsend').disabled = false; render.lab = true; schedule(); }
+    // One route for everything: the leader decides whether this is a command about an item ("bring me the
+    // screwdriver", "put the spring in the tray"), the answer to LabMate's question, or conversation with Gemma.
+    postAny('/chat', { text: text }, msg, function (r, host) {
+      fin();
+      $('chatin').value = '';
+      if (swarmSaidNo(r, msg)) { chatPush({ kind: 'user', text: text }); chatPush({ kind: 'status', text: 'Not done: ' + msg.textContent }); return; }
+      if (r && r.kind === 'fetch') {
+        chatPush({ kind: 'user', text: text });
+        var pid = labPlaceholder(r, { goal: (r.to === 'safe_tray' ? 'put ' + r.item + ' in the safe tray' : 'fetch ' + r.item), kind: 'lab', state: 'locating', lab: { mode: 'fetch', fetch: r.item } });
+        chatPush({ kind: 'status', text: 'On it: ' + (r.to === 'safe_tray' ? 'putting the ' + pretty(r.item) + ' in the safe tray' : 'bringing you the ' + pretty(r.item)) + ' (STOP halts the arm)' });
+        msg.className = 'ok'; msg.textContent = 'command ' + viaText(r, host, pid);
+      } else if (r && r.kind === 'answer') {
+        chatPush({ kind: 'user', text: text });
+        msg.className = 'ok'; msg.textContent = 'answer sent ' + viaText(r, host, r.plan_id);
+        if (r.plan_id && r.state && r.lab) onPlan(r, true, false);
+      } else {
+        msg.className = 'ok'; msg.textContent = 'queued job ' + ((r && r.job_id) || '?') + ' via ' + hostLabel(host);
+        if (r && r.job_id) {
+          var j = ensureJob(r.job_id);
+          if (!j.question) j.question = text;
+          chatAddJob(r.job_id);
+        }
+      }
+    }, function () { fin(); chatPush({ kind: 'user', text: text }); chatPush({ kind: 'status', text: 'Not sent: ' + msg.textContent }); });
+  });
+
+  // ---------------------------------------------------------------- calibration status + camera picker
+  function calibState() {
+    var d = S.cell && S.cell.data;
+    return d && typeof d.calibrated === 'boolean' ? d.calibrated : null;
+  }
+  var lastCalib;
+  function renderCal() {
+    var d = S.cell && S.cell.data, ok = calibState();
+    var bd = $('calbadge'), bn = $('calbanner');
+    bd.textContent = '';
+    if (ok !== null) {
+      bd.appendChild(el('span', 'badge ' + (ok ? 'b-cal' : 'b-nocal'), ok ? 'CALIBRATED' : 'NOT CALIBRATED'));
+      if (typeof d.reproj_err_px === 'number') bd.appendChild(document.createTextNode(' reproj ' + d.reproj_err_px.toFixed(2) + ' px'));
+      if (now() - S.cell.rx > CELL_STALE_MS) bd.appendChild(el('span', 'badge b-stale', ' STALE ' + ageText(S.cell)));
+    }
+    if (ok === false) {
+      var need = Array.isArray(d.table_tags_need) ? d.table_tags_need : [], seen = Array.isArray(d.table_tags_seen) ? d.table_tags_seen : [];
+      var n = need.length ? need.filter(function (t) { return seen.indexOf(t) >= 0; }).length : seen.length;
+      bn.textContent = 'NOT CALIBRATED: ' + n + ' of ' + (need.length || '?') + ' table tags seen (need ' + (need.length ? need.join(', ') : '?') + ')';
+      bn.className = 'on';
+    } else { bn.className = ''; bn.textContent = ''; }
+    if (lastCalib !== ok) { lastCalib = ok; markedTick(); }
+  }
+
+  var cam = { busy: false, nodes: {}, err: '', lastAuto: 0, autoDone: false };
+  function camTargets() {
+    return nodeList().filter(function (n) { return n.alive !== false && capsOf(n).indexOf('camera') >= 0 && addrOfNode(n); })
+      .map(function (n) { return { addr: addrOfNode(n), id: n.node_id }; });
+  }
+  function scanCams() {
+    var ts = camTargets();
+    if (cam.busy) return;
+    if (!ts.length) { cam.err = 'no alive node with the camera capability'; render.lab = true; schedule(); return; }
+    cam.busy = true; cam.err = ''; cam.lastAuto = now(); render.lab = true; schedule();
+    var left = ts.length;
+    ts.forEach(function (t) {
+      fetchJSON(HTTP + t.addr + '/cameras', null, 25000).then(
+        function (b) { cam.nodes[t.id] = { addr: t.addr, data: b, err: '' }; },
+        function (e) { cam.nodes[t.id] = { addr: t.addr, data: null, err: 'scan failed: ' + e.message }; }
+      ).then(function () { if (--left === 0) { cam.busy = false; render.lab = true; schedule(); } });
+    });
+  }
+  function selectCam(id, index) {
+    var nd = cam.nodes[id];
+    if (!nd) return;
+    fetchJSON(HTTP + nd.addr + '/camera/select', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ index: index }) }, 8000)
+      .then(function () { setTimeout(scanCams, 1500); }, function (e) { cam.err = 'select failed on ' + id + ': ' + e.message; render.lab = true; schedule(); });
+    cam.err = id + ': switching to camera ' + index + '…'; render.lab = true; schedule();
+  }
+  $('scanbtn').addEventListener('click', scanCams);
+  function renderCam() {
+    var ts = camTargets();
+    if (!cam.busy && ts.length && (!cam.autoDone || (calibState() === false && now() - cam.lastAuto > 30000))) { cam.autoDone = true; setTimeout(scanCams, 0); }
+    $('scanbtn').disabled = cam.busy;
+    $('scanbtn').textContent = cam.busy ? 'Scanning…' : 'Scan cameras';
+    var bn = benchNode(), ids = Object.keys(cam.nodes).sort();
+    $('camcur').textContent = cam.err || (ids.length ? ids.length + ' camera node' + (ids.length === 1 ? '' : 's') : '');
+    var box = $('camlist');
+    box.textContent = '';
+    ids.forEach(function (id) {
+      var nd = cam.nodes[id], d = nd.data, cur = null;
+      if (d && d.current !== undefined && d.current !== null) { var m = String(d.current).match(/(\d+)/); cur = m ? Number(m[1]) : null; }
+      var head = el('div', 'camhead', id + (bn && bn.node_id === id ? ' · bench camera (AprilTags + marks)' : ' · plain camera') + (nd.err ? ' · ' + nd.err : ''));
+      head.style.cssText = 'grid-column:1/-1;font-weight:700;margin:.5rem 0 .1rem';
+      box.appendChild(head);
+      (d && Array.isArray(d.cameras) ? d.cameras : []).forEach(function (c) {
+        var b = el('button', 'camopt' + (c.index === cur ? ' cur' : ''));
+        b.type = 'button';
+        if (c.jpeg_b64) { var im = el('img'); im.alt = id + ' camera ' + c.index; im.src = 'data:image/jpeg;base64,' + c.jpeg_b64; b.appendChild(im); }
+        var cc = el('div', 'cc', 'cam ' + c.index + (c.index === cur ? ' ✓ current' : ''));
+        cc.appendChild(el('small', null, 'tags: ' + (Array.isArray(c.tags) && c.tags.length ? '[' + c.tags.join(', ') + ']' : 'none') + ' · bright ' + (c.mean !== undefined ? Math.round(c.mean) : '?')));
+        b.appendChild(cc);
+        b.addEventListener('click', function () { selectCam(id, c.index); });
+        box.appendChild(b);
+      });
+    });
+  }
   function labStop(p) {
     if (!p || labBusy.stop) return;
     labBusy.stop = true; render.lab = true; schedule();

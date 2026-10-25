@@ -1,0 +1,3 @@
+# Camera nodes: core dependencies plus OpenCV's AprilTag/ArUco APIs.
+-r requirements.txt
+opencv-contrib-python-headless>=4.8,<5

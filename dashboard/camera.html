@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SwarmMind · Camera and calibration</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #080d16; color: #eef2fa; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { max-width: 1440px; margin: auto; padding: 24px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+    h1 { font-size: 1.5rem; margin: 0 0 4px; }
+    header p, .hint { color: #a8b6cc; margin: 0; }
+    a { color: #8cc9ff; }
+    .preview { position: relative; display: grid; place-items: center; aspect-ratio: 16 / 9; background: #000; border: 1px solid #29374c; border-radius: 12px; overflow: hidden; }
+    .preview img { width: 100%; height: 100%; object-fit: contain; }
+    #waiting { position: absolute; color: #a8b6cc; }
+    .readings { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
+    .reading { background: #111b2a; border: 1px solid #29374c; border-radius: 10px; padding: 16px; }
+    .label { display: block; color: #a8b6cc; font-size: .85rem; margin-bottom: 8px; }
+    .value { font-size: 1.15rem; font-weight: 650; overflow-wrap: anywhere; }
+    .ok { color: #79e4a5; }
+    .pending { color: #ffd17c; }
+    .hint { line-height: 1.6; }
+    @media (max-width: 700px) { main { padding: 12px; } .readings { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div><h1>Camera and calibration</h1><p>SwarmMind · live bench view</p></div>
+      <a href="/">Full dashboard</a>
+    </header>
+    <section class="preview" aria-label="Live camera">
+      <img id="frame" alt="Live bench camera with AprilTag outlines" hidden>
+      <span id="waiting" role="status">Waiting for the camera…</span>
+    </section>
+    <section class="readings" aria-label="Calibration readings" aria-live="polite">
+      <div class="reading"><span class="label">Camera</span><span class="value" id="camera">Connecting…</span></div>
+      <div class="reading"><span class="label">Table calibration</span><span class="value pending" id="calibration">Waiting for tags</span></div>
+      <div class="reading"><span class="label">Visible tag IDs</span><span class="value" id="tags">—</span></div>
+      <div class="reading"><span class="label">Reprojection error</span><span class="value" id="error">—</span></div>
+    </section>
+    <p class="hint" id="hint">Calibration runs automatically. Keep all four table tags (0–3) visible and match their measured positions to the camera config.</p>
+  </main>
+  <script>
+    const frame = document.getElementById('frame');
+    const waiting = document.getElementById('waiting');
+    let frameURL = null;
+
+    async function refreshFrame() {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      try {
+        let response = await fetch('/cell/frame.jpg', { cache: 'no-store', signal: controller.signal });
+        if (response.status === 404) {
+          response = await fetch('/frame.jpg', { cache: 'no-store', signal: controller.signal });
+        }
+        if (!response.ok) throw new Error('No camera frame');
+        const nextURL = URL.createObjectURL(await response.blob());
+        const previousURL = frameURL;
+        frameURL = nextURL;
+        frame.src = nextURL;
+        if (previousURL) URL.revokeObjectURL(previousURL);
+      } catch (error) {
+        waiting.textContent = 'Waiting for the camera… Retrying automatically.';
+        waiting.hidden = false;
+      } finally {
+        clearTimeout(timer);
+        setTimeout(refreshFrame, 500);
+      }
+    }
+
+    frame.onload = () => { frame.hidden = false; waiting.hidden = true; };
+
+    async function refreshState() {
+      const camera = document.getElementById('camera');
+      const calibration = document.getElementById('calibration');
+      const tags = document.getElementById('tags');
+      const error = document.getElementById('error');
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 3000);
+      try {
+        const response = await fetch('/state', { cache: 'no-store', signal: controller.signal });
+        if (!response.ok) throw new Error('Camera status unavailable');
+        const snapshot = await response.json();
+        const sample = (snapshot.topics || []).find(topic => topic.topic === 'cell.state');
+        if (!sample) throw new Error('Waiting for perception');
+        const state = sample.data;
+        const fresh = Date.now() / 1000 - state.frame_ts < 3;
+        camera.textContent = fresh ? 'Live · ' + state.camera : 'Frame delayed';
+        camera.className = 'value ' + (fresh ? 'ok' : 'pending');
+        calibration.textContent = fresh ? (state.calibrated ? 'Calibrated' : 'Waiting for table tags') : 'Waiting for fresh frame';
+        calibration.className = 'value ' + (fresh && state.calibrated ? 'ok' : 'pending');
+        tags.textContent = fresh ? ((state.tags || []).map(tag => tag.id).sort((a, b) => a - b).join(', ') || 'None visible') : '—';
+        error.textContent = fresh && state.calibrated && state.reproj_err_px != null ? state.reproj_err_px.toFixed(2) + ' px' : '—';
+      } catch (err) {
+        camera.textContent = 'Waiting for camera';
+        camera.className = 'value pending';
+        calibration.textContent = 'Waiting for fresh frame';
+        calibration.className = 'value pending';
+        tags.textContent = error.textContent = '—';
+      } finally {
+        clearTimeout(timer);
+        setTimeout(refreshState, 1000);
+      }
+    }
+
+    refreshFrame();
+    refreshState();
+  </script>
+</body>
+</html>

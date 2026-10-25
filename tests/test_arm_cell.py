@@ -175,7 +175,8 @@ async def test_move_object_relocates_and_moves():
     exp_place = P.table_to_arm((0.10, 0.20, 0.04), BASE)
     assert (r["place"]["x"], r["place"]["y"], r["place"]["z"]) == pytest.approx(exp_place, abs=1e-4)
     grips = [c["value"] for c in svc().safety.drv.log if c["cmd"] == "gripper"]
-    assert grips == [1.0, 0.0, 1.0]                               # open, grip, release
+    # open, grip, release; the grip closes to the blob's 2 cm width minus the 9 mm squeeze = 1.1 cm gap of 10 cm
+    assert grips == pytest.approx([1.0, 0.11, 1.0], abs=1e-6)
     # the carry runs level at the carry height, at carry_speed
     carry_z = max(exp_pick[2], exp_place[2]) + 0.08
     level = [m for m in moves() if abs(m["z"] - carry_z) < 1e-6]

@@ -38,7 +38,7 @@ static_peers: ["192.168.1.30:8700", "192.168.1.40:8700", "192.168.1.41:8700", "1
 udp_port: 50000            # heartbeat/discovery port (open UDP 50000 in the firewall)
 broadcast_addr: "255.255.255.255"   # "" disables broadcast (static_peers only)
 heartbeat_interval: 0.2    # seconds between heartbeats
-peer_timeout: 0.6          # seconds without a heartbeat before a peer is dead
+peer_timeout: 3.0         # seconds without a heartbeat before a peer is dead
 health_interval: 0.5       # seconds between local LLM health checks
 health_window: 2.0         # healthy = own LLM answered a check within this window
 takeover_stable_s: 3.0     # a higher-ranked node must be stable this long before preempting

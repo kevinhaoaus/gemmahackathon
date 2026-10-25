@@ -39,7 +39,7 @@ The only step that needs internet is installing packages (apt, pip, the Ollama i
                  │  Thor  │ │ Legion │ │  Pi   │     · any laptop opening the dashboard
                  └──┬─────┘ └──┬─────┘ └───────┘
                 USB │          │ USB
-          SO-101 arm, webcams  webcams           (USB devices belong to ONE node; not networked)
+          webcams              webcams           (USB devices belong to ONE node; not networked)
 ```
 
 ### Options, best first
@@ -53,11 +53,11 @@ The only step that needs internet is installing packages (apt, pip, the Ollama i
 
 ### Rules that matter for this system
 
-- **Wire the Thor and the Legion with Ethernet.** A peer counts as dead after 600 ms without a heartbeat, and Wi-Fi hiccups can cause false failovers.
+- **Wire the Thor and the Legion with Ethernet.** A peer counts as dead after `peer_timeout` (3 s in the real-node configs, 0.6 s in the simulator) without a heartbeat, and Wi-Fi hiccups can cause false failovers.
 - **Turn the Thor's Wi-Fi off** (`nmcli radio wifi off`) if pulling its Ethernet cable is your demo move. Otherwise it stays reachable over Wi-Fi and no handoff happens.
 - **One address per node.** A machine on both Ethernet and Wi-Fi has two IPs. Set `host_ip` explicitly in its config (the Legion currently has `.11` on Ethernet and `.36` on Wi-Fi), or turn off the interface you don't use.
 - **Fixed IPs.** In the router's admin page, set a DHCP reservation per machine (MAC address → IP) so the IPs in `static_peers` never change. Or set static IPs on each machine.
-- **USB devices are not on the network.** The SO-101 and the webcams plug into one node each. That node advertises them (`capabilities: ["arm.so101"]`, `camera_url: usb:0`), and everything else reaches them through the swarm.
+- **USB devices are not on the network.** The reBot arm and the webcams plug into one node each. That node advertises them (`capabilities: ["arm.cell"]`, `camera_url: usb:0`), and everything else reaches them through the swarm.
 - **The phone** joins the same Wi-Fi. Use its IP for the IP Webcam URL, and open `http://<any-node>:8700/teleop` (HTTPS `:8443` is needed for the IMU, see the Thor guide).
 
 ### Two-minute connectivity check (do this before anything else)
@@ -372,7 +372,7 @@ Every node keeps every finished report. The leader POSTs unsent reports to the f
 5. **Store-and-forward.** Leave the base-station sink off while answering a few questions; the reports queue up on every node. Then start `python scripts/uplink_sink.py --port 8800`, or plug in the base-station laptop. Within 5 s, the queue flushes, the dashboard marks the reports as sent, and each one lands **exactly once** at the sink.
 6. Optional robot arm (LabMate, see [LABMATE.md](LABMATE.md)):
    1. Press **Inspect bench** in the LabMate panel.
-   2. Submit steps as `arm.so101` tasks (or `arm.mock`) if you want to drive the arm directly.
+   2. Submit steps as `arm.cell` tasks (or `arm.mock`) if you want to drive the arm directly.
    3. Kill the arm's node, and watch the task reassign.
    4. Cancel a task with `POST /task/{id}/cancel` (the e-stop).
 

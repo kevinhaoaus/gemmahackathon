@@ -6,7 +6,7 @@
 # --- identity ---------------------------------------------------------------
 node_id: thor              # unique name on the swarm
 rank: 200                  # top rank: Thor leads whenever it is alive and healthy
-host_ip: ""                # IP advertised to peers; "" = auto-detect the LAN IP
+host_ip: "192.168.50.1"    # direct Thor <-> Legion Ethernet cable (no router): Thor .1, Legion .2
 http_port: 8700            # HTTP API + dashboard + /ws/peer + /ws/ui + /ws/topics
 bind_host: "0.0.0.0"       # listen on all interfaces
 
@@ -29,22 +29,22 @@ detector_model_cpu: ""     # optional plain .tflite detector for handoff labels;
 detector_labels: ""        # COCO labels for the optional detector
 # Workspace camera snapshot URL: http(s)://.../shot.jpg, file:<path>, mock:, or "" for none.
 # 192.168.1.50 = the Android IP Webcam phone; replace it, or "" if this node has no camera.
-camera_url: "http://192.168.1.50:8080/shot.jpg"
+camera_url: "usb:0?w=1920&h=1080&fps=30"   # Brio 100 on the Thor (/dev/video0). Pick another in the portal if needed
 
 # --- network (LAN only) -----------------------------------------------------
 # Plan: thor .30 (this), legion .36, pi .40, macbook .41, macbook2 .42. Replace with your IPs.
-static_peers: ["192.168.1.36:8700", "192.168.1.40:8700", "192.168.1.41:8700", "192.168.1.42:8700"]
+static_peers: ["192.168.50.2:8700"]   # the Legion; add more nodes here when there is a switch
 udp_port: 50000            # heartbeat/discovery port (ufw allow 50000/udp)
-broadcast_addr: "255.255.255.255"   # "" disables broadcast (static_peers only)
+broadcast_addr: ""        # direct cable: unicast to static_peers only
 heartbeat_interval: 0.2    # seconds between heartbeats
-peer_timeout: 0.6          # seconds without a heartbeat before a peer is dead
+peer_timeout: 3.0         # seconds without a heartbeat before a peer is dead
 health_interval: 0.5       # seconds between local LLM health checks
 health_window: 2.0         # healthy = own LLM answered a check within this window
 takeover_stable_s: 3.0     # stability required before preempting a healthy lower-ranked leader
 startup_grace_s: 1.0       # listen this long before claiming leadership
 
 # --- task bus ---------------------------------------------------------------
-capabilities: []           # add "arm.so101" here if the SO-101's USB cable is plugged into the Thor
+capabilities: []           # the bench perception + arm run on the Legion; the Thor only adds Gemma and a second camera
 capability_config:   # per-capability settings, e.g. {"arm.so101": {"port": "/dev/ttyACM0", "mock": false}}; plus the shared cell block
   # robot cell / LabMate layout (docs/ROBOT_CELL.md, docs/LABMATE.md): IDENTICAL on every node, so any
   # leader can run LabMate. Measure tag_size_m and table_tags on the real bench (metres, table frame).
@@ -92,7 +92,7 @@ capability_config:   # per-capability settings, e.g. {"arm.so101": {"port": "/de
       min_use_case_score: 0.5          # below this the experiment is "unknown" (general notes only)
 
 # --- store-and-forward uplink (LAN base station, never cloud) ---------------
-uplink_urls: ["http://192.168.1.36:8800/reports"]   # base station sink; replace the IP
+uplink_urls: ["http://192.168.50.2:8800/reports"]   # base station sink on the Legion; replace the IP
 uplink_interval: 5.0       # seconds between flush attempts (leader only)
 data_dir: data             # persisted under data/<node_id>/
 log_level: INFO            # DEBUG | INFO | WARNING

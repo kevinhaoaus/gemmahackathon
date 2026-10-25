@@ -49,7 +49,7 @@ import time
 from typing import TYPE_CHECKING, Any, Optional
 
 from ..cell import perception as P
-from ..cell.arm import ArmConfigError, MotionAborted, build_arm, num, pick, place, wrap_deg
+from ..cell.arm import ArmConfigError, MotionAborted, build_arm, num, pick, place, width_to_grip, wrap_deg
 from ..logutil import get_logger
 from ..tasks import AVAILABILITY, REGISTRY, register_capability, set_availability
 from . import cell_arm
@@ -131,6 +131,9 @@ class CellArmService(cell_arm.ArmService):
         self.base = self._base(conf, node)
         self.carry_speed = num(conf.get("carry_speed", 0.03), "carry_speed")
         self.radius = num(conf.get("match_radius_m", 0.04), "match_radius_m")
+        # gripper closes to (object width from the camera box - squeeze); linear 0 cm = closed .. grip_open_cm = open
+        self.grip_open_m = num(conf.get("grip_open_cm", 10.0), "grip_open_cm") / 100.0
+        self.squeeze_m = num(conf.get("squeeze_mm", 9.0), "squeeze_mm") / 1000.0
         self.max_age = num(conf.get("blobs_max_age_s", 3.0), "blobs_max_age_s")
         self.health_s = max(0.1, num(conf.get("health_interval_s", 1.0), "health_interval_s"))
         self._health: Optional[asyncio.Task] = None
@@ -402,7 +405,13 @@ class CellArmService(cell_arm.ArmService):
                                 "pct": base_pct + round(span * float(pp.get("pct", 0)) / 100)})
             return f
 
-        picked = await pick(s, pk["x"], pk["y"], pk["z"], pk["yaw"], ah, None, sub("pick", 5, 40), gen)
+        width = blob.get("width_m")                       # short side of the camera's bounding box
+        grip = width_to_grip(float(width), self.grip_open_m, self.squeeze_m) if width else None
+        if grip is not None:
+            await progress({"step": "grip_width", "item": item, "width_cm": round(float(width) * 100, 1),
+                            "gap_cm": round(grip * self.grip_open_m * 100, 1)})
+        picked = await pick(s, pk["x"], pk["y"], pk["z"], pk["yaw"], ah, None, sub("pick", 5, 40), gen,
+                            grip_value=grip)
         await progress({"step": "carry", "phase": "carry", "item": item, "pct": 50,
                         "target": {k: round(v, 4) for k, v in pl.items()}})
         if carry_z > pk["z"] + ah + 1e-4:
