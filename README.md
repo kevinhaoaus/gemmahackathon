@@ -4,6 +4,10 @@
 
 ### [Demo Video (GitHub)](<./AGI House Gemma Hackathon - Robots with Redundant Inference - 720p.mp4>)
 
+### [Final Presentation (GitHub)](./swarmmind-final-presentation.mp4)
+
+Our final hackathon presentation: a robot that runs Gemma inference across a Jetson Thor and an RTX 4070 laptop, with redundancy to keep operating if one device disconnects.
+
 ### [Project Page](https://www.agihouse.org/events/the-google-gemma-hardware-hackathon/projects/8493f1a6-3680-47cf-860a-8295e32c8163)
 
 ### [Hackathon Home Page](https://www.agihouse.org/events/the-google-gemma-hardware-hackathon)
